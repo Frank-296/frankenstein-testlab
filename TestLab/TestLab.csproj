@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net7.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Bogus" Version="34.0.2" />
+    <PackageReference Include="ClosedXML" Version="0.101.0" />
+    <PackageReference Include="ExtentReports" Version="4.1.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.6.0" />
+    <PackageReference Include="NUnit" Version="3.13.3" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.4.2" />
+    <PackageReference Include="NUnit.Analyzers" Version="3.6.1" />
+    <PackageReference Include="Selenium.Support" Version="4.9.1" />
+    <PackageReference Include="Selenium.WebDriver" Version="4.9.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="TestApplications\AmazonStore\BusinessProcesses\" />
+    <Folder Include="TestApplications\AmazonStore\Exceptions\" />
+    <Folder Include="TestApplications\AmazonStore\Functions\" />
+    <Folder Include="TestApplications\AmazonStore\Locators\" />
+    <Folder Include="TestApplications\AmazonStore\Methods\" />
+    <Folder Include="TestApplications\AmazonStore\Results\" />
+    <Folder Include="TestApplications\AmazonStore\TestCases\" />
+    <Folder Include="TestApplications\AmazonStore\TestData\" />
+    <Folder Include="TestApplications\AmazonStore\Utilities\" />
+    <Folder Include="TestApplications\AppleStore\Exceptions\" />
+    <Folder Include="TestApplications\AppleStore\Functions\" />
+    <Folder Include="TestApplications\AppleStore\Results\" />
+    <Folder Include="TestApplications\AppleStore\TestData\" />
+    <Folder Include="TestApplications\AppleStore\Utilities\" />
+    <Folder Include="TestApplications\MicrosoftStore\Exceptions\" />
+    <Folder Include="TestApplications\MicrosoftStore\Results\" />
+    <Folder Include="TestApplications\MicrosoftStore\TestData\" />
+  </ItemGroup>
+
+</Project>

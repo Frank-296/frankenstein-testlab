@@ -1,0 +1,574 @@
+﻿@page "/defects/list"
+@inject IExecutionsStore<Execution> executionsService
+@inject IDefectsStore<Defect> defectsService
+@inject NavigationManager navigationManager
+
+<div class="p-4">
+	<div class="card">
+		<div class="card-header bg-blueberry">
+			<div class="d-flex justify-content-between">
+				<h5 class="h5 mb-2 mt-2"><span class="oi oi-bug" aria-hidden="true"></span> Defects</h5>
+				<div class="btn-toolbar mb-2 mb-md-0">
+					<div class="btn-group btn-sm">
+						@if (Defects != null)
+						{
+							<button class="btn btn-kiwi" @onclick="Export"><span class="oi oi-data-transfer-download"></span> Export data</button>
+						}
+					</div>
+				</div>
+			</div>
+		</div>
+		<div class="card-body">
+			@if (Defects == null)
+			{
+				<p><em>Loading...</em></p>
+			}
+			else
+			{
+				<RadzenDataGrid AllowFiltering="true" FilterMode="FilterMode.Simple" FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive" AllowColumnResize="true"
+							AllowPaging="true" AllowSorting="true" Data="Defects" TItem="Defect" CellRender="@CellRender" ColumnWidth="300px" Style="height:585px">
+					<Columns>
+						<RadzenDataGridColumn Frozen="true" TItem="Defect" Filterable="false" Sortable="false" TextAlign="TextAlign.Center" Width="50px">
+							<Template>
+								@(Defects.IndexOf(context) + 1)
+							</Template>
+						</RadzenDataGridColumn>
+						<RadzenDataGridColumn Frozen="true" TItem="Defect" Property="Execution.User.DisplayName" Title="Executor" Width="150px">
+							<FooterTemplate>
+								Total records: <b>@Defects.Count()</b>
+							</FooterTemplate>
+						</RadzenDataGridColumn>
+						<RadzenDataGridColumn TItem="Defect" Property="User.DisplayName" Title="Assignee" Width="150px"></RadzenDataGridColumn>
+						<RadzenDataGridColumn TItem="Defect" Property="DefectPriority" Title="Defect priority" Width="240px"></RadzenDataGridColumn>
+						<RadzenDataGridColumn TItem="Defect" Property="DefectStatus" Title="Defect status" Width="240px">
+							<Template Context="data">
+								@if (data.DefectStatus == DefectStatus.New || data.DefectStatus == DefectStatus.Rejected || data.DefectStatus == DefectStatus.Deferred || data.DefectStatus == DefectStatus.Reopened)
+								{
+									<span>@data.DefectStatus</span>
+								}
+								else
+								{
+									if (data.DefectStatus == DefectStatus.Retested)
+									{
+										<span style='color: var(--lemon)'>@data.DefectStatus</span>
+									}
+									else
+									{
+										<span style='color: var(--rz-text-contrast-color)'>@data.DefectStatus</span>
+									}
+								}
+							</Template>
+						</RadzenDataGridColumn>
+						<RadzenDataGridColumn TItem="Defect" Property="Execution.ExecutionStatus" Title="Execution status" Width="240px">
+							<Template Context="data">
+								@if (data.Execution.ExecutionStatus == ExecutionStatus.Stop)
+								{
+									<span>@data.Execution.ExecutionStatus</span>
+								}
+								else
+								{
+									<span style='color: var(--rz-text-contrast-color)'>@data.Execution.ExecutionStatus</span>
+								}
+							</Template>
+						</RadzenDataGridColumn>
+						<RadzenDataGridColumn TextAlign="TextAlign.Center" TItem="Defect" Sortable="false" Filterable="false" Width="@ActionsColumnWidth">
+							<Template Context="data">
+								<div class="btn-group w-100">
+									@if (Role == "Automator")
+									{
+										if (data.DefectStatus == DefectStatus.Fixed || data.DefectStatus == DefectStatus.Retested && data.Execution.ExecutionStatus == ExecutionStatus.Pass)
+										{
+											<button class="btn btn-sky" title="Defect details" @onclick="() => ShowDetails(data, false)">
+												<span class="oi oi-info" aria-hidden="true"></span>
+											</button>
+										}
+										else
+										{
+											<button class="btn btn-sky" title="Edit defect" @onclick="() => ShowDetails(data, true)">
+												<span class="oi oi-pencil" aria-hidden="true"></span>
+											</button>
+										}
+									}
+									else
+									{
+										if (data.DefectStatus == DefectStatus.Fixed)
+										{
+											if (data.Execution.SuiteExecutionId == null)
+											{
+												<a class="btn btn-kiwi" title="Run (retest)" href="/executions/result/defects/@data.ExecutionId/@data.Execution.TestCaseId/@data.Execution.TestCase.BusinessProcessId/@data.Execution.TestCase.BusinessProcess.TestApplicationId">
+													<span class="oi oi-media-play" aria-hidden="true"></span>
+												</a>
+											}
+											else
+											{
+												<a class="btn btn-kiwi" title="New run" href="/executions/execute/defects/@data.Execution.TestCaseId/@data.Execution.TestCase.BusinessProcessId/@data.Execution.TestCase.BusinessProcess.TestApplicationId">
+													<span class="oi oi-media-play" aria-hidden="true"></span>
+												</a>
+											}
+										}
+										else
+										{
+											<button class="btn btn-sky" title="Defect details" @onclick="() => ShowDetails(data, false)">
+												<span class="oi oi-info" aria-hidden="true"></span>
+											</button>
+										}
+									}
+									@if (ShowActionButtons)
+									{
+										<button class="btn btn-caution" title="Delete" @onclick="() => Delete(data.DefectId)">
+											<span class="oi oi-trash" aria-hidden="true"></span>
+										</button>
+									}
+									else
+									{
+										<button class="btn btn-caution" title="Delete" disabled>
+											<span class="oi oi-trash" aria-hidden="true"></span>
+										</button>
+									}
+								</div>
+							</Template>
+						</RadzenDataGridColumn>
+					</Columns>
+				</RadzenDataGrid>
+			}
+		</div>
+	</div>
+</div>
+
+@if (ShowDetailsModal)
+{
+	<div class="modal fade show" style="display:block" tabindex="-1">
+		<div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+			<div class="modal-content">
+				<div class="modal-header bg-blueberry">
+					@if (IsEditable)
+					{
+						<h5 class="modal-title"><span class="oi oi-pencil" aria-hidden="true"></span> Edit defect</h5>
+					}
+					else
+					{
+						<h5 class="modal-title"><span class="oi oi-info" aria-hidden="true"></span> Defect details</h5>
+					}
+					<button type="button" class="btn-close btn-close-white" @onclick="() => ShowDetailsModal = false"></button>
+				</div>
+				<div class="modal-body">
+					<EditForm Model="Defect">
+						<div class="form-floating mb-3">
+							<InputText class="form-control" placeholder="Executor" @bind-Value="Tester" disabled></InputText>
+							<label>Executor</label>
+						</div>
+						<div class="form-floating mb-3">
+							<InputText class="form-control" placeholder="Date and time of execution" @bind-Value="ExecutionDate" disabled></InputText>
+							<label>Date and time of execution</label>
+						</div>
+						<div class="form-floating mb-3">
+							<InputText class="form-control" placeholder="Test application" @bind-Value="Defect.Execution.TestCase.BusinessProcess.TestApplication.Name" disabled></InputText>
+							<label>Test application</label>
+						</div>
+						<div class="form-floating mb-3">
+							<InputText class="form-control" placeholder="Business process" @bind-Value="Defect.Execution.TestCase.BusinessProcess.Name" disabled></InputText>
+							<label>Business process</label>
+						</div>
+						<div class="form-floating mb-3">
+							<InputText class="form-control" placeholder="Test case" @bind-Value="Defect.Execution.TestCase.Name" disabled></InputText>
+							<label>Test case</label>
+						</div>
+						<div class="form-floating mb-3">
+							<InputSelect class="form-select" placeholder="Execution status" @bind-Value="Defect.Execution.ExecutionStatus" disabled>
+								<option value="0" disabled selected>Select execution status</option>
+								@foreach (var executionStatus in Enum.GetValues(typeof(ExecutionStatus)))
+								{
+									<option value="@executionStatus">@executionStatus</option>
+								}
+							</InputSelect>
+							<label>Execution status</label>
+						</div>
+						<div class="form-floating mb-3">
+							<InputSelect class="form-select" placeholder="Defect priority" @bind-Value="Defect.DefectPriority" disabled>
+								<option value="0" disabled selected>Select defect priority</option>
+								@foreach (var defectPriority in Enum.GetValues(typeof(DefectPriority)))
+								{
+									<option value="@defectPriority">@defectPriority</option>
+								}
+							</InputSelect>
+							<label>Defect priority</label>
+						</div>
+						<div class="form-floating mb-3">
+							<InputSelect class="form-select" placeholder="Defect severity" @bind-Value="Defect.DefectSeverity" disabled>
+								<option value="0" disabled selected>Select defect severity</option>
+								@foreach (var defectSeverity in Enum.GetValues(typeof(DefectSeverity)))
+								{
+									<option value="@defectSeverity">@defectSeverity</option>
+								}
+							</InputSelect>
+							<label>Defect severity</label>
+						</div>
+						@if (IsEditable)
+						{
+							<div class="form-floating mb-3">
+								<InputSelect class="form-select" placeholder="Defect status" @bind-Value="Defect.DefectStatus">
+									<option value="0" disabled selected>Select defect status</option>
+									@foreach (var defectStatus in Enum.GetValues(typeof(DefectStatus)))
+									{
+										<option value="@defectStatus">@defectStatus</option>
+									}
+								</InputSelect>
+								<label>Defect status</label>
+							</div>
+						}
+						else
+						{
+							<div class="form-floating mb-3">
+								<InputSelect class="form-select" placeholder="Defect status" @bind-Value="Defect.DefectStatus" disabled>
+									<option value="0" disabled selected>Select defect status</option>
+									@foreach (var defectStatus in Enum.GetValues(typeof(DefectStatus)))
+									{
+										<option value="@defectStatus">@defectStatus</option>
+									}
+								</InputSelect>
+								<label>Defect status</label>
+							</div>
+						}
+						<div class="form-floating mb-3">
+							<InputText class="form-control" placeholder="Assignee" @bind-Value="Assignee" disabled></InputText>
+							<label>Assignee</label>
+						</div>
+						<div class="form-floating mb-3">
+							<InputText class="form-control" placeholder="Summary" @bind-Value="Defect.Summary" disabled></InputText>
+							<label>Summary</label>
+						</div>
+						<div class="form-floating mb-3">
+							<InputTextArea class="form-control" placeholder="Description (Steps to replicate bug)" style="height:300px" @bind-Value="Defect.Description" disabled></InputTextArea>
+							<label>Description (Steps to replicate bug)</label>
+						</div>
+						<div class="card">
+							<div class="card-header">
+								<div class="d-flex justify-content-between">
+									<label><span class="oi oi-clipboard" aria-hidden="true"></span> Evidence</label>
+								</div>
+							</div>
+							<div class="card-body">
+								<iframe srcdoc="@HtmlReportString" frameborder="0" allowfullscreen style="position:relative; height:70vh; width:100%; pointer-events: none;"></iframe>
+							</div>
+						</div>
+					</EditForm>
+				</div>
+				@if (IsEditable)
+				{
+					<div class="modal-footer bg-light">
+						<div class="btn-group btn-sm w-100">
+							<button class="btn btn-confirm" @onclick="Save"><span class="oi oi-check" aria-hidden="true"></span> Accept</button>
+							<button type="button" class="btn btn-mist" @onclick="() => ShowDetailsModal = false"><span class="oi oi-ban" aria-hidden="true"></span> Cancel</button>
+						</div>
+					</div>
+				}
+			</div>
+		</div>
+	</div>
+	<div class="modal-backdrop fade show"></div>
+}
+
+@if (IsLoading)
+{
+	<div class="modal fade show" style="display:block" tabindex="-1">
+		<div class="modal-dialog modal-dialog-centered modal-sm modal-dialog-scrollable">
+			<div class="modal-content">
+				<div class="modal-header bg-blueberry">
+					<h5 class="modal-title"><span class="oi oi-clock" aria-hidden="true"></span> Wait...</h5>
+				</div>
+				<div class="modal-body" style="min-height:250px">
+					<div class="spinner"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="modal-backdrop fade show"></div>
+}
+
+@code {
+	private IList<Defect> Defects;
+	private IEnumerable<String> SelectedRoles;
+	private List<String> Roles = new();
+	private Defect Defect = new();
+	private Boolean IsLoading = false;
+	private Boolean ShowDetailsModal = false;
+	private Boolean ShowActionButtons = false;
+	private Boolean IsEditable = false;
+	private String HtmlReportString;
+	private String Automator;
+	private String Tester;
+	private String Assignee;
+	private String ActionsColumnWidth;
+	private String Role;
+	private String ExecutionDate;
+	private String Id;
+
+	private async Task Export()
+	{
+		IsLoading = true;
+
+		try
+		{
+			var dataTable = new DataTable("Defects");
+
+			dataTable.Columns.AddRange(new DataColumn[17]
+			{
+				new DataColumn("#"),
+				new DataColumn("Application"),
+				new DataColumn("Business process"),
+				new DataColumn("Test type"),
+				new DataColumn("Test case"),
+				new DataColumn("Date and time of execution"),
+				new DataColumn("Environment"),
+				new DataColumn("Browser"),
+				new DataColumn("Executor"),
+				new DataColumn("Role"),
+				new DataColumn("Execution status"),
+				new DataColumn("Defect priority"),
+				new DataColumn("Defect severity"),
+				new DataColumn("Defect status"),
+				new DataColumn("Defect description"),
+				new DataColumn("Assignee"),
+				new DataColumn("Assignee role")
+			});
+
+			foreach (var defect in Defects)
+			{
+				dataTable.Rows.Add((Defects.IndexOf(defect) + 1),
+				defect.Execution.TestCase.BusinessProcess.TestApplication.Name,
+				defect.Execution.TestCase.BusinessProcess.Name,
+				defect.Execution.TestCase.TestType,
+				defect.Execution.TestCase.Name,
+				defect.Execution.ExecutionDate,
+				defect.Execution.TestEnvironment,
+				defect.Execution.BrowserDriver,
+				defect.Execution.User.DisplayName,
+				defect.Execution.User.UserRoles.FirstOrDefault().Role.Name,
+				defect.Execution.ExecutionStatus,
+				defect.DefectPriority,
+				defect.DefectSeverity,
+				defect.DefectStatus,
+				defect.Description,
+				defect.User.DisplayName,
+				defect.User.UserRoles.FirstOrDefault().Role.Name);
+			}
+
+			var workBook = new XLWorkbook();
+			var workSheet = workBook.Worksheets.Add(dataTable);
+
+			workSheet.RangeUsed().Style.Font.FontName = "Cambria";
+			workSheet.ColumnsUsed().AdjustToContents();
+
+			var memoryStream = new MemoryStream();
+
+			workBook.SaveAs(memoryStream);
+
+			await FileSaver.SaveAsync($"Defects.xlsx", memoryStream, default);
+		}
+		catch (Exception)
+		{
+			await App.Current.MainPage.DisplayAlert("Incorrect", "An unexpected error occurred!", "Ok");
+		}
+
+		await Task.Delay(1000);
+
+		IsLoading = false;
+	}
+
+	void CellRender(DataGridCellRenderEventArgs<Defect> args)
+	{
+		if (args.Column.Property == "DefectStatus")
+		{
+			switch (args.Data.DefectStatus)
+			{
+				case DefectStatus.New:
+					args.Attributes.Add("style", $"background-color: {(args.Data.DefectStatus == DefectStatus.New ? "var(--rain)" : "var(--rz-base-background-color)")};");
+					break;
+
+				case DefectStatus.Assigned:
+					args.Attributes.Add("style", $"background-color: {(args.Data.DefectStatus == DefectStatus.Assigned ? "var(--sky)" : "var(--rz-base-background-color)")};");
+					break;
+
+				case DefectStatus.Open:
+					args.Attributes.Add("style", $"background-color: {(args.Data.DefectStatus == DefectStatus.Open ? "var(--grape)" : "var(--rz-base-background-color)")};");
+					break;
+
+				case DefectStatus.Duplicated:
+					args.Attributes.Add("style", $"background-color: {(args.Data.DefectStatus == DefectStatus.Duplicated ? "var(--mammee)" : "var(--rz-base-background-color)")};");
+					break;
+
+				case DefectStatus.Rejected:
+					args.Attributes.Add("style", $"background-color: {(args.Data.DefectStatus == DefectStatus.Rejected ? "var(--mist)" : "var(--rz-base-background-color)")};");
+					break;
+
+				case DefectStatus.Deferred:
+					args.Attributes.Add("style", $"background-color: {(args.Data.DefectStatus == DefectStatus.Deferred ? "var(--rain)" : "var(--rz-base-background-color)")};");
+					break;
+
+				case DefectStatus.NotABug:
+					args.Attributes.Add("style", $"background-color: {(args.Data.DefectStatus == DefectStatus.NotABug ? "var(--eggplant)" : "var(--rz-base-background-color)")};");
+					break;
+
+				case DefectStatus.Fixed:
+					args.Attributes.Add("style", $"background-color: {(args.Data.DefectStatus == DefectStatus.Fixed ? "var(--grass)" : "var(--rz-base-background-color)")};");
+					break;
+
+				case DefectStatus.Retested:
+					args.Attributes.Add("style", $"background-color: {(args.Data.DefectStatus == DefectStatus.Retested ? "var(--olive)" : "var(--rz-base-background-color)")};");
+					break;
+
+				case DefectStatus.Reopened:
+					args.Attributes.Add("style", $"background-color: {(args.Data.DefectStatus == DefectStatus.Reopened ? "var(--pineapple)" : "var(--rz-base-background-color)")};");
+					break;
+
+				case DefectStatus.Closed:
+					args.Attributes.Add("style", $"background-color: {(args.Data.DefectStatus == DefectStatus.Closed ? "var(--storm)" : "var(--rz-base-background-color)")};");
+					break;
+			}
+		}
+
+		if (args.Column.Property == "Execution.ExecutionStatus")
+		{
+			switch (args.Data.Execution.ExecutionStatus)
+			{
+				case ExecutionStatus.NotRun:
+					args.Attributes.Add("style", $"background-color: {(args.Data.Execution.ExecutionStatus == ExecutionStatus.NotRun ? "var(--sky)" : "var(--rz-base-background-color)")};");
+					break;
+
+				case ExecutionStatus.Stop:
+					args.Attributes.Add("style", $"background-color: {(args.Data.Execution.ExecutionStatus == ExecutionStatus.Stop ? "var(--pineapple)" : "var(--rz-base-background-color)")};");
+					break;
+
+				case ExecutionStatus.Fail:
+					args.Attributes.Add("style", $"background-color: {(args.Data.Execution.ExecutionStatus == ExecutionStatus.Fail ? "var(--mammee)" : "var(--rz-base-background-color)")};");
+					break;
+
+				case ExecutionStatus.Pass:
+					args.Attributes.Add("style", $"background-color: {(args.Data.Execution.ExecutionStatus == ExecutionStatus.Pass ? "var(--grass)" : "var(--rz-base-background-color)")};");
+					break;
+			}
+		}
+	}
+
+	private void OnSelectedRolesChange(Object value)
+	{
+		if (SelectedRoles != null && !SelectedRoles.Any())
+			SelectedRoles = null;
+	}
+
+	private async Task LoadDefects() => Defects = await defectsService.GetDefectsAsync(Id);
+
+	private async Task Save()
+	{
+		if (String.IsNullOrEmpty(Defect.Summary) && String.IsNullOrWhiteSpace(Defect.Summary) ||
+			String.IsNullOrEmpty(Defect.Description) && String.IsNullOrWhiteSpace(Defect.Description) ||
+			String.IsNullOrEmpty(Defect.UserId) && String.IsNullOrWhiteSpace(Defect.UserId) ||
+			Defect.DefectPriority == 0 && Defect.DefectSeverity == 0 && Defect.DefectStatus == 0)
+			await App.Current.MainPage.DisplayAlert("Warning", "One or more fields are empty!", "Ok");
+		else
+		{
+			if (Connectivity.NetworkAccess == NetworkAccess.Internet)
+			{
+				var result = await defectsService.UpdateDefectAsync(Defect);
+
+				ShowDetailsModal = false;
+				IsEditable = false;
+
+				if (result != null)
+				{
+					if (Defect.DefectStatus == DefectStatus.Fixed)
+					{
+						Defect.Execution.ExecutionStatus = ExecutionStatus.NotRun;
+
+						await executionsService.UpdateExecutionAsync(Defect.Execution, null, null, null, null, false);
+
+						if (Email.Default.IsComposeSupported)
+						{
+							var subject = $"The bug found in the test case called: {Defect.Execution.TestCase.Name} was fixed; Bug fixed by: {Automator}";
+							var body = $"Defect priority: {Defect.DefectPriority}\n"
+								+ $"Defect severity: {Defect.DefectSeverity}\n"
+								+ $"Defect status: {Defect.DefectStatus}\n\n"
+								+ $"Defect summary: {Defect.Summary}\n\n"
+								+ $"Defect description:\n{Defect.Description}\n\n"
+								+ $"Hi, now you can test this test case again.\n\n"
+								+ $"Regards!";
+
+							String[] recipients = new[] { Defect.Execution.User.Email };
+
+							var message = new EmailMessage
+							{
+								Subject = subject,
+								Body = body,
+								BodyFormat = EmailBodyFormat.PlainText,
+								To = new List<String>(recipients)
+							};
+
+							await Email.Default.ComposeAsync(message);
+						}
+					}
+
+					await LoadDefects();
+				}
+			}
+			else
+				await App.Current.MainPage.DisplayAlert("Connection error", "Please check your internet connection and try again!", "Ok");
+		}
+	}
+
+	private void ShowDetails(Defect defect, Boolean isEditable)
+	{
+		IsEditable = isEditable;
+
+		Defect = defect;
+		Tester = defect.Execution.User.DisplayName;
+		Assignee = $"{defect.User.Email} | {defect.User.DisplayName}";
+		ExecutionDate = defect.Execution.ExecutionDate.ToString();
+		HtmlReportString = Encoding.Default.GetString(Compression.Decompress(defect.Execution.TestReport));
+
+		ShowDetailsModal = true;
+	}
+
+	private async Task Delete(String defectId)
+	{
+		if (await App.Current.MainPage.DisplayAlert("Delete", "Are you sure to delete this defect?", "Yes", "No"))
+		{
+			if (Connectivity.NetworkAccess == NetworkAccess.Internet)
+			{
+				await defectsService.DeleteDefectAsync(defectId);
+				await LoadDefects();
+			}
+			else
+				await App.Current.MainPage.DisplayAlert("Connection error", "Please check your internet connection and try again!", "Ok");
+		}
+	}
+
+	protected override async Task OnInitializedAsync()
+	{
+		if (Preferences.ContainsKey("id"))
+			Id = Preferences.Get("id", null) as String;
+
+		if (Preferences.ContainsKey("role"))
+			Role = Preferences.Get("role", null) as String;
+
+		if (Role == "Automator")
+			if (Preferences.ContainsKey("tester"))
+				Automator = Preferences.Get("tester", null) as String;
+
+		if (Role == "Root" || Role == "Manager" || Role == "Administrator" || Role == "Automator")
+		{
+			ShowActionButtons = true;
+			ActionsColumnWidth = "120px";
+		}
+		else
+			ActionsColumnWidth = "80px";
+
+		if (Connectivity.NetworkAccess == NetworkAccess.Internet)
+			await LoadDefects();
+		else
+		{
+			await App.Current.MainPage.DisplayAlert("Connection error", "Please check your internet connection and try again!", "Ok");
+
+			navigationManager.NavigateTo($"/defects/list", true);
+		}
+	}
+}

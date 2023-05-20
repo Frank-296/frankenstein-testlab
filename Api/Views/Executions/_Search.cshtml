@@ -1,0 +1,49 @@
+﻿@model Execution
+@{
+    ViewData["Title"] = "Search single executions";
+}
+
+<div class="modal-content">
+    <div class="modal-header bg-blueberry">
+        <h5 class="modal-title"><i class="fa fa-magnifying-glass"></i> @ViewBag.Title</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+    </div>
+    <div class="modal-body">
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+        <form asp-controller="Executions" asp-action="Index" id="search" class="needs-validation" novalidate autocomplete="off">
+            <div class="form-floating mb-3">
+                <select asp-for="TestCase.BusinessProcess.TestApplication.TestApplicationId" id="testApplicationId" name="TestApplicationId" asp-items="ViewBag.TestApplications" class="form-select" required>
+                    <option value="" disabled selected>Select test application</option>
+                </select>
+                <label asp-for="TestCase.BusinessProcess.TestApplication.TestApplicationId" class="form-label"></label>
+                <div class="invalid-feedback">
+                    Please choose a test application.
+                </div>
+            </div>
+            <div class="form-floating mb-3">
+                <select asp-for="TestCase.BusinessProcess.BusinessProcessId" id="businessProcessId" name="BusinessProcessId" class="form-select" disabled required>
+                    <option value="" disabled selected>Select business process</option>
+                </select>
+                <label asp-for="TestCase.BusinessProcess.BusinessProcessId" class="form-label"></label>
+                <div class="invalid-feedback">
+                    Please choose a business process.
+                </div>
+            </div>
+            <div class="form-floating">
+                <select asp-for="TestCase.TestCaseId" id="testCaseId" name="TestCaseId" class="form-select" disabled required>
+                    <option value="" disabled selected>Select test case</option>
+                </select>
+                <label asp-for="TestCase.TestCaseId" class="form-label"></label>
+                <div class="invalid-feedback">
+                    Please choose a test case.
+                </div>
+            </div>
+        </form>
+    </div>
+    <div class="modal-footer bg-light">
+        <div class="btn-group w-100">
+            <button type="submit" value="Search" class="btn btn-confirm" form="search"><i class="fa fa-check"></i> Accept</button>
+            <button type="button" class="btn btn-mist" data-bs-dismiss="modal"><i class="fa fa-ban"></i> Cancelar</button>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,34 @@
+{
+  "version": "1.0",
+  "defaultProvider": "cdnjs",
+  "libraries": [
+    {
+      "library": "Chart.js@4.3.0",
+      "destination": "wwwroot/lib/Chart.js/"
+    },
+    {
+      "library": "font-awesome@6.4.0",
+      "destination": "wwwroot/lib/font-awesome/"
+    },
+    {
+      "library": "jszip@3.10.1",
+      "destination": "wwwroot/lib/jszip/"
+    },
+    {
+      "library": "limonte-sweetalert2@11.7.5",
+      "destination": "wwwroot/lib/limonte-sweetalert2/"
+    },
+    {
+      "library": "pdfmake@0.2.7",
+      "destination": "wwwroot/lib/pdfmake/"
+    },
+    {
+      "library": "video.js@8.3.0",
+      "destination": "wwwroot/lib/video.js/"
+    },
+    {
+      "library": "xlsx@0.18.5",
+      "destination": "wwwroot/lib/xlsx/"
+    }
+  ]
+}

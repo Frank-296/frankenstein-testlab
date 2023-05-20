@@ -1,0 +1,272 @@
+﻿@page "/"
+@inject IAccountsStore<LoginViewModel, GetProfileViewModel, UpdateProfileViewModel, ChangePasswordViewModel> service
+@inject NavigationManager navigationManager
+@using TestExecutor.Pages.TestApplications
+
+<div>
+	<div class="p-4">
+		<div class="row">
+			<List />
+			<section class="col-md-4">
+				<div class="card">
+					<div class="card-header bg-blueberry">
+						<div class="d-flex justify-content-between">
+							<h5 class="h5 mb-2 mt-2"><span class="oi oi-person" aria-hidden="true"></span> My profile</h5>
+							<div class="btn-toolbar mb-2 mb-md-0">
+								<div class="btn-group btn-sm">
+									<button class="btn btn-olive" @onclick="Edit"><span class="oi oi-pencil" aria-hidden="true"></span> Edit</button>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="card-body">
+						<div class="profile-userpic">
+							<img src="images/Profile.png" class="img-fluid" />
+						</div>
+						<div class="profile">
+							<div class="profile-name">
+								@Profile.DisplayName
+							</div>
+							<div class="profile-email">
+								@Profile.Email
+							</div>
+							<div class="profile-role">
+								@Role
+							</div>
+						</div>
+					</div>
+					<div class="card-footer">
+						<div class="btn-group btn-sm w-100">
+							<button class="btn btn-olive" @onclick="ChangePassword"><span class="oi oi-key" aria-hidden="true"></span> Change password</button>
+						</div>
+					</div>
+				</div>
+			</section>
+		</div>
+	</div>
+</div>
+
+@if (ShowEditModal)
+{
+	<div class="modal fade show" style="display:block">
+		<div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+			<div class="modal-content">
+				<div class="modal-header bg-blueberry">
+					<h5 class="modal-title"><span class="oi oi-pencil" aria-hidden="true"></span> Edit profile</h5>
+					<button type="button" class="btn-close btn-close-white" @onclick="() => Cancel(1)"></button>
+				</div>
+				<div class="modal-body">
+					<EditForm Model="Profile">
+						<div class="form-floating mb-3">
+							<InputText class="form-control" placeholder="Name" @bind-Value="Profile.Name"></InputText>
+							<label>Name</label>
+						</div>
+						<div class="form-floating mb-3">
+							<InputText class="form-control" placeholder="Last name" @bind-Value="Profile.LastName"></InputText>
+							<label>Last name</label>
+						</div>
+						<div class="form-floating mb-3">
+							<InputText class="form-control" placeholder="Mother's last name" @bind-Value="Profile.MothersLastName"></InputText>
+							<label>Mother's last name</label>
+						</div>
+						<div class="form-floating">
+							<InputText class="form-control" placeholder="Phone number" @bind-Value="Profile.PhoneNumber"></InputText>
+							<label>Phone number</label>
+						</div>
+					</EditForm>
+				</div>
+				<div class="modal-footer bg-light">
+					<div class="btn-group btn-sm w-100">
+						<button class="btn btn-confirm" @onclick="() => Save(1)"><span class="oi oi-check" aria-hidden="true"></span> Accept</button>
+						<button type="button" class="btn btn-mist" @onclick="() => Cancel(1)"><span class="oi oi-ban" aria-hidden="true"></span> Cancel</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="modal-backdrop fade show"></div>
+}
+
+@if (ShowChangePasswordModal)
+{
+	<div class="modal fade show" style="display:block">
+		<div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+			<div class="modal-content">
+				<div class="modal-header bg-blueberry">
+					<h5 class="modal-title"><span class="oi oi-key" aria-hidden="true"></span> Change password</h5>
+					<button type="button" class="btn-close btn-close-white" @onclick="() => Cancel(2)"></button>
+				</div>
+				<div class="modal-body">
+					<EditForm Model="Password">
+						<div class="form-floating mb-3">
+							<InputText class="form-control" placeholder="Current password" type="password" @bind-Value="Password.OldPassword"></InputText>
+							<label>Current password</label>
+						</div>
+						<div class="form-floating mb-3">
+							<InputText class="form-control" placeholder="New password" type="password" @bind-Value="Password.NewPassword"></InputText>
+							<label>New password</label>
+						</div>
+						<div class="form-floating">
+							<InputText class="form-control" placeholder="Confirm password" type="password" @bind-Value="Password.ConfirmPassword"></InputText>
+							<label>Confirm password</label>
+						</div>
+					</EditForm>
+				</div>
+				<div class="modal-footer bg-light">
+					<div class="btn-group btn-sm w-100">
+						<button class="btn btn-confirm" @onclick="() => Save(2)"><span class="oi oi-check" aria-hidden="true"></span> Accept</button>
+						<button type="button" class="btn btn-mist" @onclick="() => Cancel(2)"><span class="oi oi-ban" aria-hidden="true"></span> Cancel</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="modal-backdrop fade show"></div>
+}
+
+@code
+{
+	private GetProfileViewModel Profile = new();
+	private ChangePasswordViewModel Password = new();
+	private Boolean ShowEditModal = false;
+	private Boolean ShowChangePasswordModal = false;
+	private String Role;
+	private String Id;
+
+	private async Task LoadProfile(String id)
+	{
+		Profile = await service.GetProfileAsync(id);
+
+		if (!Profile.IsAuthorized)
+		{
+			await App.Current.MainPage.DisplayAlert("Warning", "You do not have authorized access to this application!", "Ok");
+
+			Preferences.Clear();
+			SecureStorage.RemoveAll();
+
+			navigationManager.NavigateTo("/", true);
+		}
+	}
+
+	private async Task Edit()
+	{
+		if (Profile != null)
+			ShowEditModal = true;
+		else
+			await App.Current.MainPage.DisplayAlert("Incorrect", "Your profile was not found!", "Ok");
+	}
+
+	private void ChangePassword() => ShowChangePasswordModal = true;
+
+	private async Task Save(Int32 action)
+	{
+		if (action == 1)
+		{
+			if (String.IsNullOrEmpty(Profile.Name) && String.IsNullOrWhiteSpace(Profile.Name) ||
+				String.IsNullOrEmpty(Profile.LastName) && String.IsNullOrWhiteSpace(Profile.LastName) ||
+				String.IsNullOrEmpty(Profile.PhoneNumber) && String.IsNullOrWhiteSpace(Profile.PhoneNumber))
+				await App.Current.MainPage.DisplayAlert("Warning", "One or more fields are empty!", "Ok");
+			else
+			{
+				if (Connectivity.NetworkAccess == NetworkAccess.Internet)
+				{
+					var updateProfile = new UpdateProfileViewModel
+					{
+						Id = Profile.Id,
+						Name = Profile.Name,
+						LastName = Profile.LastName,
+						MothersLastName = Profile.MothersLastName,
+						PhoneNumber = Profile.PhoneNumber,
+						ProfilePicture = Profile.ProfilePicture
+					};
+
+					await service.UpdateProfileAsync(updateProfile);
+
+					ShowEditModal = false;
+
+					await LoadProfile(Id);
+				}
+				else
+					await App.Current.MainPage.DisplayAlert("Connection error", "Please check your internet connection and try again!", "Ok");
+			}
+		}
+		else
+		{
+			if (String.IsNullOrEmpty(Password.OldPassword) && String.IsNullOrWhiteSpace(Password.OldPassword) ||
+				String.IsNullOrEmpty(Password.NewPassword) && String.IsNullOrWhiteSpace(Password.NewPassword) ||
+				String.IsNullOrEmpty(Password.ConfirmPassword) && String.IsNullOrWhiteSpace(Password.ConfirmPassword))
+				await App.Current.MainPage.DisplayAlert("Warning", "One or more fields are empty!", "Ok");
+			else
+			{
+				if (Password.NewPassword != Password.ConfirmPassword)
+					await App.Current.MainPage.DisplayAlert("Warning", "The new password and the confirmation password do not match!", "Ok");
+				else
+				{
+					var passwordRegex = new Regex(@"^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[#?!@$%^&*-]).{6,}$");
+
+					var validNewPassword = passwordRegex.IsMatch(Password.NewPassword);
+
+					if (!validNewPassword)
+						await App.Current.MainPage.DisplayAlert("Warning", "The new password must contain at least one number, one uppercase letter, one lowercase letter, one special character and its minimum length must be 6 characters!", "Ok");
+					else
+					{
+						if (Password.OldPassword == Password.NewPassword)
+							await App.Current.MainPage.DisplayAlert("Warning", "The new password and the current password cannot be the same!", "Ok");
+						else
+						{
+							if (Connectivity.NetworkAccess == NetworkAccess.Internet)
+							{
+								Password.Id = Id;
+
+								var result = await service.ChangePasswordAsync(Password);
+
+								if (result)
+								{
+									ShowChangePasswordModal = false;
+									Password = new();
+								}
+							}
+							else
+								await App.Current.MainPage.DisplayAlert("Connection error", "Please check your internet connection and try again!", "Ok");
+						}
+					}
+				}
+			}
+		}
+	}
+
+	private async Task Cancel(Int32 action)
+	{
+		if (action == 1)
+		{
+			ShowEditModal = false;
+
+			await LoadProfile(Profile.Id);
+		}
+		else
+		{
+			ShowChangePasswordModal = false;
+			Password = new();
+		}
+	}
+
+	protected override async Task OnInitializedAsync()
+	{
+		if (Preferences.ContainsKey("role"))
+			Role = Preferences.Get("role", null) as String;
+
+		if (Preferences.ContainsKey("id"))
+		{
+			Id = Preferences.Get("id", null) as String;
+
+			if (Connectivity.NetworkAccess == NetworkAccess.Internet)
+				await LoadProfile(Id);
+			else
+			{
+				await App.Current.MainPage.DisplayAlert("Connection error", "Please check your internet connection and try again!", "Ok");
+
+				navigationManager.NavigateTo("/", true);
+			}
+		}
+	}
+}

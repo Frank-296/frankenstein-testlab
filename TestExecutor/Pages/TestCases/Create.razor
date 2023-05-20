@@ -1,0 +1,229 @@
+﻿@page "/testCases/create/{businessProcessId}/{testApplicationId}"
+@inject IBusinessProcessesStore<BusinessProcess> businessProcessesService
+@inject ITestCasesStore<TestCase> testCasesService
+@inject NavigationManager navigationManager
+
+<div>
+	<div class="p-4">
+		<div class="card mb-3">
+			<div class="card-header bg-blueberry">
+				<div class="d-flex justify-content-between">
+					<h5 class="h5 mb-2 mt-2"><span class="oi oi-plus" aria-hidden="true"></span> New test case (@BusinessProcess.Name)</h5>
+					<div class="btn-toolbar mb-2 mb-md-0">
+						<div class="btn-group btn-sm">
+							<a class="btn btn-storm" href="/testCases/list/@BusinessProcessId/@TestApplicationId"><span class="oi oi-media-skip-backward"></span> Go back</a>
+						</div>
+					</div>
+				</div>
+			</div>
+			<div class="card-body">
+				<EditForm Model="TestCase">
+					<div class="form-floating mb-3">
+						<InputSelect class="form-select" placeholder="Test type" @bind-Value="TestCase.TestType">
+							<option value="0" disabled selected>Select test type</option>
+							@foreach (var testType in Enum.GetValues(typeof(TestType)))
+							{
+								<option value="@testType">@testType</option>
+							}
+						</InputSelect>
+						<label>Test type</label>
+					</div>
+					<div class="form-floating mb-3">
+						<InputText class="form-control" placeholder="Name" @bind-Value="TestCase.Name"></InputText>
+						<label>Name</label>
+					</div>
+					<div class="form-floating mb-3">
+						<InputTextArea class="form-control" placeholder="Description" style="height:300px" @bind-Value="TestCase.Description"></InputTextArea>
+						<label>Description</label>
+					</div>
+					<div class="form-floating mb-3">
+						<InputTextArea class="form-control" placeholder="Preconditions" style="height:300px" @bind-Value="TestCase.Preconditions"></InputTextArea>
+						<label>Preconditions</label>
+					</div>
+					<div class="form-floating mb-3">
+						<InputTextArea class="form-control" placeholder="Remarks" style="height:300px" @bind-Value="TestCase.Remarks"></InputTextArea>
+						<label>Remarks</label>
+					</div>
+					<div class="form-check mb-3">
+						<InputCheckbox id="isRequired" class="form-check-input" typeof="checkbox" @bind-Value="TestCase.TestDataIsRequired"></InputCheckbox>
+						<label for="isRequired" class="form-check-label">Test data is (Required/Not required)</label>
+					</div>
+					@if (TestCase.TestDataIsRequired)
+					{
+						<div class="file-input">
+							<InputFile class="form-control" accept=".xlsx, xls" @key="InputFieldId" OnChange="OnInputFileChange"></InputFile>
+						</div>
+					}
+				</EditForm>
+			</div>
+			<div class="card-footer">
+				<div class="btn-group btn-sm w-100">
+					<button class="btn btn-confirm" @onclick="Save"><span class="oi oi-check" aria-hidden="true"></span> Accept</button>
+					<a class="btn btn-mist" href="/testCases/list/@BusinessProcessId/@TestApplicationId"><span class="oi oi-ban" aria-hidden="true"></span> Cancel</a>
+				</div>
+			</div>
+		</div>
+		@if (TestCase.TestDataIsRequired)
+		{
+			<div class="card">
+				<div class="card-header bg-blueberry">
+					<div class="d-flex justify-content-between">
+						<h5 class="h5 mb-2 mt-2"><span class="oi oi-info" aria-hidden="true"></span> Data extracted from excel</h5>
+					</div>
+				</div>
+				<div class="card-body">
+					@if (NewDataPool.Rows.Count == 0)
+					{
+						<p><em>@NewDataPoolStatus</em></p>
+					}
+					else
+					{
+						<table id="table" class="table table-sm table-bordered table-striped" cellspacing="0" width="100%">
+							<thead>
+								<tr>
+									@foreach (DataColumn column in NewDataPool.Columns)
+									{
+										<th>@column.ColumnName</th>
+									}
+								</tr>
+							</thead>
+							<tbody>
+								@foreach (DataRow row in NewDataPool.Rows)
+								{
+									<tr>
+										@foreach (DataColumn column in NewDataPool.Columns)
+										{
+											<td>@row[column.ColumnName]</td>
+										}
+									</tr>
+								}
+							</tbody>
+						</table>
+					}
+				</div>
+			</div>
+		}
+	</div>
+</div>
+
+@code {
+	[Parameter]
+	public String BusinessProcessId { get; set; }
+
+	[Parameter]
+	public String TestApplicationId { get; set; }
+
+	private BusinessProcess BusinessProcess = new();
+	private TestCase TestCase = new();
+	private DataTable NewDataPool = new();
+	private String NewDataPoolStatus = "Waiting...";
+	private Guid InputFieldId = Guid.NewGuid();
+
+	private async Task OnInputFileChange(InputFileChangeEventArgs e)
+	{
+		NewDataPool = new();
+		NewDataPoolStatus = "Loading...";
+
+		var testData = e.File;
+		var fileStream = testData.OpenReadStream();
+		var memoryStream = new MemoryStream();
+
+		await fileStream.CopyToAsync(memoryStream);
+
+		try
+		{
+			var workBook = new XLWorkbook(memoryStream);
+			var workSheet = workBook.Worksheet(1);
+			var firstRow = true;
+
+			if (!(workSheet.RangeUsed().RowsUsed().Count() >= 2))
+			{
+				await App.Current.MainPage.DisplayAlert("Warning", "The selected file is empty!", "Ok");
+
+				InputFieldId = Guid.NewGuid();
+			}
+			else
+			{
+				foreach (var row in workSheet.RangeUsed().RowsUsed())
+				{
+					if (firstRow)
+					{
+						foreach (IXLCell cell in row.Cells())
+							NewDataPool.Columns.Add(cell.GetString());
+
+						firstRow = false;
+					}
+					else
+					{
+						NewDataPool.Rows.Add();
+
+						var rowStart = 0;
+
+						foreach (IXLCell cell in row.Cells(row.FirstCellUsed().Address.ColumnNumber, row.LastCellUsed().Address.ColumnNumber))
+						{
+							NewDataPool.Rows[NewDataPool.Rows.Count - 1][rowStart] = cell.GetString();
+							rowStart++;
+						}
+					}
+				}
+
+				TestCase.TestData = memoryStream.ToArray();
+			}
+		}
+		catch (Exception)
+		{
+			await App.Current.MainPage.DisplayAlert("Warning", "The selected file is invalid!", "Ok");
+
+			InputFieldId = Guid.NewGuid();
+		}
+	}
+
+	private async Task Save()
+	{
+		if (String.IsNullOrEmpty(TestCase.Name) && String.IsNullOrWhiteSpace(TestCase.Name) ||
+			String.IsNullOrEmpty(TestCase.Description) && String.IsNullOrWhiteSpace(TestCase.Description) ||
+			String.IsNullOrEmpty(TestCase.Preconditions) && String.IsNullOrWhiteSpace(TestCase.Preconditions) ||
+			TestCase.TestType == 0)
+			await App.Current.MainPage.DisplayAlert("Warning", "One or more fields are empty!", "Ok");
+		else
+		{
+			if (TestCase.TestDataIsRequired && TestCase.TestData == null)
+				await App.Current.MainPage.DisplayAlert("Warning", "An example of test data is required for the executions of this test case!", "Ok");
+			else
+			{
+				if (Connectivity.NetworkAccess == NetworkAccess.Internet)
+				{
+					TestCase.TestCaseId = Guid.NewGuid().ToString();
+					TestCase.BusinessProcessId = BusinessProcessId;
+					TestCase.Status = true;
+
+					if (!TestCase.TestDataIsRequired)
+						TestCase.TestData = null;
+
+					await testCasesService.AddTestCaseAsync(TestCase, TestApplicationId, navigationManager);
+				}
+				else
+					await App.Current.MainPage.DisplayAlert("Connection error", "Please check your internet connection and try again!", "Ok");
+			}
+		}
+	}
+
+	protected override async Task OnInitializedAsync()
+	{
+		if (Connectivity.NetworkAccess == NetworkAccess.Internet)
+		{
+			BusinessProcess = await businessProcessesService.GetBusinessProcessAsync(BusinessProcessId);
+
+			if (BusinessProcess != null)
+				return;
+			else
+			{
+				await App.Current.MainPage.DisplayAlert("Incorrect", "Business process information not found!", "Ok");
+
+				navigationManager.NavigateTo($"/testCases/list/{BusinessProcessId}/{TestApplicationId}");
+			}
+		}
+		else
+			await App.Current.MainPage.DisplayAlert("Connection error", "Please check your internet connection and try again!", "Ok");
+	}
+}

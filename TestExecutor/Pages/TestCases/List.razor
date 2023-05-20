@@ -1,0 +1,293 @@
+﻿@page "/testCases/list/{businessProcessId}/{testApplicationId}"
+@inject IBusinessProcessesStore<BusinessProcess> businessProcessesService
+@inject ITestCasesStore<TestCase> testCasesService
+@inject NavigationManager navigationManager
+
+<div class="p-4">
+	<div class="card">
+		<div class="card-header bg-blueberry">
+			<div class="d-flex justify-content-between">
+				<h5 class="h5 mb-2 mt-2"><span class="oi oi-beaker" aria-hidden="true"></span> Test suite (@BusinessProcess.Name)</h5>
+				<div class="btn-toolbar mb-2 mb-md-0">
+					<div class="btn-group btn-sm">
+						@if (Role == "Root" || Role == "Manager" || Role == "Administrator" || Role == "Automator")
+						{
+							if (TestCases != null)
+							{
+								<button class="btn btn-kiwi" @onclick="Export"><span class="oi oi-data-transfer-download"></span> Export data</button>
+							}
+							if (Role == "Root" || Role == "Automator")
+							{
+								<a class="btn btn-grass" href="/testCases/create/@BusinessProcessId/@TestApplicationId"><span class="oi oi-plus"></span> Add</a>
+							}
+						}
+						<a class="btn btn-storm" href="/businessProcesses/list/@TestApplicationId"><span class="oi oi-media-skip-backward"></span> Go back</a>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div class="card-body">
+			@if (TestCases == null)
+			{
+				<p><em>Loading...</em></p>
+			}
+			else
+			{
+				<RadzenDataGrid AllowFiltering="true" FilterMode="FilterMode.Simple" FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive" AllowColumnResize="true"
+							AllowPaging="true" AllowSorting="true" Data="TestCases" TItem="TestCase" ColumnWidth="450px" Style="height:585px">
+					<Columns>
+						<RadzenDataGridColumn Frozen="true" TItem="TestCase" Filterable="false" Sortable="false" TextAlign="TextAlign.Center" Width="50px">
+							<Template>
+								@(TestCases.IndexOf(context) + 1)
+							</Template>
+						</RadzenDataGridColumn>
+						<RadzenDataGridColumn Frozen="true" TItem="TestCase" Property="Name" Title="Name" Width="280px">
+							<FooterTemplate>
+								Total records: <b>@TestCases.Count()</b>
+							</FooterTemplate>
+						</RadzenDataGridColumn>
+						<RadzenDataGridColumn TItem="TestCase" Property="Description" Title="Description" Width="300px"></RadzenDataGridColumn>
+						<RadzenDataGridColumn TItem="TestCase" Property="TestType" Title="Test type" Width="300px"></RadzenDataGridColumn>
+						<RadzenDataGridColumn TextAlign="TextAlign.Center" TItem="TestCase" Property="Status" Title="Status" Width="100px">
+							<Template Context="data">
+								@(data.Status == true ? "Active" : "Inactive")
+							</Template>
+						</RadzenDataGridColumn>
+						<RadzenDataGridColumn TextAlign="TextAlign.Center" TItem="TestCase" Sortable="false" Filterable="false" Width="@ActionsColumnWidth">
+							<HeaderTemplate>
+								<div class="btn-group btn-sm">
+									<a class="btn btn-sky" href="/suiteExecutions/list/@BusinessProcessId/@TestApplicationId" title="Test suite executions"><span class="oi oi-task"></span></a>
+								</div>
+							</HeaderTemplate>
+							<Template Context="data">
+								<div class="btn-group w-100">
+									@if (data.Status)
+									{
+										<a class="btn btn-grape" title="Executions" href="/executions/list/@data.TestCaseId/@data.BusinessProcessId/@TestApplicationId">
+											<span class="oi oi-task" aria-hidden="true"></span>
+										</a>
+									}
+									else
+									{
+										<button class="btn btn-grape" title="Executions" disabled>
+											<span class="oi oi-task" aria-hidden="true"></span>
+										</button>
+									}
+									@if (!ShowActionButtons)
+									{
+										<button class="btn btn-sky" title="Details" @onclick="() => ShowDetails(data.TestCaseId)">
+											<span class="oi oi-info" aria-hidden="true"></span>
+										</button>
+									}
+									@if (ShowActionButtons)
+									{
+										<a class="btn btn-olive" title="Edit" href="/testCases/edit/@data.TestCaseId/@data.BusinessProcessId/@TestApplicationId">
+											<span class="oi oi-pencil" aria-hidden="true"></span>
+										</a>
+										<button class="btn btn-caution" title="Delete" @onclick="() => Delete(data.TestCaseId)">
+											<span class="oi oi-trash" aria-hidden="true"></span>
+										</button>
+									}
+								</div>
+							</Template>
+						</RadzenDataGridColumn>
+					</Columns>
+				</RadzenDataGrid>
+			}
+		</div>
+	</div>
+</div>
+
+@if (ShowDetailsModal)
+{
+	<div class="modal fade show" style="display:block" tabindex="-1">
+		<div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+			<div class="modal-content">
+				<div class="modal-header bg-blueberry">
+					<h5 class="modal-title"><span class="oi oi-info" aria-hidden="true"></span> Test case details</h5>
+					<button type="button" class="btn-close btn-close-white" @onclick="Close"></button>
+				</div>
+				<div class="modal-body">
+					<EditForm Model="TestCase">
+						<div class="form-floating mb-3">
+							<InputSelect class="form-select" placeholder="Test type" @bind-Value="TestCase.TestType" disabled>
+								<option value="0" disabled selected>Select test type</option>
+								@foreach (var testType in Enum.GetValues(typeof(TestType)))
+								{
+									<option value="@testType">@testType</option>
+								}
+							</InputSelect>
+							<label>Test type</label>
+						</div>
+						<div class="form-floating mb-3">
+							<InputText class="form-control" placeholder="Name" @bind-Value="TestCase.Name" disabled></InputText>
+							<label>Name</label>
+						</div>
+						<div class="form-floating mb-3">
+							<InputTextArea class="form-control" placeholder="Description" style="height:300px" @bind-Value="TestCase.Description" disabled></InputTextArea>
+							<label>Description</label>
+						</div>
+						<div class="form-floating mb-3">
+							<InputTextArea class="form-control" placeholder="Preconditions" style="height:300px" @bind-Value="TestCase.Preconditions" disabled></InputTextArea>
+							<label>Preconditions</label>
+						</div>
+						<div class="form-floating">
+							<InputTextArea class="form-control" placeholder="Remarks" style="height:300px" @bind-Value="TestCase.Remarks" disabled></InputTextArea>
+							<label>Remarks</label>
+						</div>
+					</EditForm>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="modal-backdrop fade show"></div>
+}
+
+@if (IsLoading)
+{
+	<div class="modal fade show" style="display:block" tabindex="-1">
+		<div class="modal-dialog modal-dialog-centered modal-sm modal-dialog-scrollable">
+			<div class="modal-content">
+				<div class="modal-header bg-blueberry">
+					<h5 class="modal-title"><span class="oi oi-clock" aria-hidden="true"></span> Wait...</h5>
+				</div>
+				<div class="modal-body" style="min-height:250px">
+					<div class="spinner"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="modal-backdrop fade show"></div>
+}
+
+@code {
+	[Parameter]
+	public String BusinessProcessId { get; set; }
+
+	[Parameter]
+	public String TestApplicationId { get; set; }
+
+	private IList<TestCase> TestCases;
+	private BusinessProcess BusinessProcess = new();
+	private TestCase TestCase = new();
+	private Boolean ShowDetailsModal = false;
+	private Boolean ShowActionButtons = false;
+	private Boolean IsLoading = false;
+	private String ActionsColumnWidth;
+	private String Role;
+
+	private async Task Export()
+	{
+		IsLoading = true;
+
+		try
+		{
+			var dataTable = new DataTable("Test Cases");
+
+			dataTable.Columns.AddRange(new DataColumn[7]
+			{
+				new DataColumn("#"),
+				new DataColumn("Test type"),
+				new DataColumn("Name"),
+				new DataColumn("Description"),
+				new DataColumn("Preconditions"),
+				new DataColumn("Remarks"),
+				new DataColumn("Status")
+			});
+
+			foreach (var testCase in TestCases)
+				dataTable.Rows.Add((TestCases.IndexOf(testCase) + 1),
+				testCase.TestType,
+				testCase.Name,
+				testCase.Description,
+				testCase.Preconditions,
+				testCase.Remarks,
+				testCase.Status == true ? "Active" : "Inactive");
+
+			var workBook = new XLWorkbook();
+			var workSheet = workBook.Worksheets.Add(dataTable);
+
+			workSheet.RangeUsed().Style.Font.FontName = "Cambria";
+			workSheet.ColumnsUsed().AdjustToContents();
+
+			var memoryStream = new MemoryStream();
+
+			workBook.SaveAs(memoryStream);
+
+			await FileSaver.SaveAsync($"Test suite ({BusinessProcess.Name}).xlsx", memoryStream, default);
+		}
+		catch (Exception)
+		{
+			await App.Current.MainPage.DisplayAlert("Incorrect", "An unexpected error occurred!", "Ok");
+		}
+
+		await Task.Delay(1000);
+
+		IsLoading = false;
+	}
+
+	private async Task LoadTestCases() => TestCases = await testCasesService.GetTestCasesAsync(BusinessProcessId);
+
+	private async Task ShowDetails(String id)
+	{
+		if (Connectivity.NetworkAccess == NetworkAccess.Internet)
+		{
+			TestCase = await testCasesService.GetTestCaseAsync(id);
+
+			if (TestCase != null)
+				ShowDetailsModal = true;
+			else
+				await App.Current.MainPage.DisplayAlert("Incorrect", "No test case information found!", "Ok");
+		}
+		else
+			await App.Current.MainPage.DisplayAlert("Connection error", "Please check your internet connection and try again!", "Ok");
+	}
+
+	private async Task Delete(String testCaseId)
+	{
+		if (await App.Current.MainPage.DisplayAlert("Delete", "Are you sure to delete this test case?", "Yes", "No"))
+		{
+			if (Connectivity.NetworkAccess == NetworkAccess.Internet)
+			{
+				await testCasesService.DeleteTestCaseAsync(testCaseId);
+				await LoadTestCases();
+			}
+			else
+				await App.Current.MainPage.DisplayAlert("Connection error", "Please check your internet connection and try again!", "Ok");
+		}
+	}
+
+	private void Close()
+	{
+		ShowDetailsModal = false;
+
+		TestCase = new();
+	}
+
+	protected override async Task OnInitializedAsync()
+	{
+		if (Preferences.ContainsKey("role"))
+			Role = Preferences.Get("role", null) as String;
+
+		if (Role == "Root" || Role == "Manager" || Role == "Administrator" || Role == "Automator")
+		{
+			ShowActionButtons = true;
+			ActionsColumnWidth = "180px";
+		}
+		else
+			ActionsColumnWidth = "120px";
+
+		if (Connectivity.NetworkAccess == NetworkAccess.Internet)
+		{
+			await LoadTestCases();
+
+			BusinessProcess = await businessProcessesService.GetBusinessProcessAsync(BusinessProcessId);
+		}
+		else
+		{
+			await App.Current.MainPage.DisplayAlert("Connection error", "Please check your internet connection and try again!", "Ok");
+
+			navigationManager.NavigateTo($"/testCases/list/{BusinessProcessId}/{TestApplicationId}", true);
+		}
+	}
+}

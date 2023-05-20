@@ -1,0 +1,221 @@
+﻿@page "/suiteExecutions/list/{businessProcessId}/{testApplicationId}"
+@inject IBusinessProcessesStore<BusinessProcess> businessProcessesService
+@inject ISuiteExecutionsStore<SuiteExecution> suiteExecutionsService
+@inject IRolesStore<Role> rolesService
+@inject NavigationManager navigationManager
+
+<div class="p-4">
+    <div class="card">
+        <div class="card-header bg-blueberry">
+            <div class="d-flex justify-content-between">
+                <h5 class="h5 mb-2 mt-2"><span class="oi oi-task" aria-hidden="true"></span> Test suite executions (@BusinessProcess.Name)</h5>
+                <div class="btn-toolbar mb-2 mb-md-0">
+                    <div class="btn-group btn-sm">
+                        @if (Role == "Root" || Role == "Manager" || Role == "Administrator" || Role == "Automator")
+                        {
+                            if (SuiteExecutions != null)
+                            {
+                                <button class="btn btn-kiwi" @onclick="Export"><span class="oi oi-data-transfer-download"></span> Export data</button>
+                            }
+                        }
+                        <a class="btn btn-grass" href="/suiteExecutions/execute/@BusinessProcessId/@TestApplicationId"><span class="oi oi-media-play"></span> Execute</a>
+                        <a class="btn btn-storm" href="/testCases/list/@BusinessProcessId/@TestApplicationId"><span class="oi oi-media-skip-backward"></span> Go back</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            @if (SuiteExecutions == null)
+            {
+                <p><em>Loading...</em></p>
+            }
+            else
+            {
+                <RadzenDataGrid AllowFiltering="true" FilterMode="FilterMode.Simple" FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive" AllowColumnResize="true"
+                            AllowPaging="true" AllowSorting="true" Data="SuiteExecutions" TItem="SuiteExecution" ColumnWidth="450px" Style="height:585px">
+                    <Columns>
+                        <RadzenDataGridColumn Frozen="true" TItem="SuiteExecution" Filterable="false" Sortable="false" TextAlign="TextAlign.Center" Width="50px">
+                            <Template>
+                                @(SuiteExecutions.IndexOf(context) + 1)
+                            </Template>
+                        </RadzenDataGridColumn>
+                        <RadzenDataGridColumn Frozen="true" TItem="SuiteExecution" Property="ExecutionDate" Title="Date and time of execution" Width="250px">
+                            <FooterTemplate>
+                                Total records: <b>@SuiteExecutions.Count()</b>
+                            </FooterTemplate>
+                        </RadzenDataGridColumn>
+                        <RadzenDataGridColumn TItem="SuiteExecution" Property="User.DisplayName" Title="Executor"></RadzenDataGridColumn>
+                        <RadzenDataGridColumn TItem="SuiteExecution" Property="User.UserRoles.FirstOrDefault().Role.Name" Title="Role" Width="250px" Type="typeof(IEnumerable<String>)"
+                                          FilterValue="SelectedRoles" FilterOperator="FilterOperator.Contains" LogicalFilterOperator="LogicalFilterOperator.Or">
+                            <FilterTemplate>
+                                <RadzenDropDown @bind-Value=SelectedRoles Style="width:100%"
+                                            Change=OnSelectedRolesChange Data="Roles" AllowClear="true" Multiple="true" />
+                            </FilterTemplate>
+                            <Template Context="data">
+                                <span>@data.User.UserRoles.FirstOrDefault().Role.Name</span>
+                            </Template>
+                        </RadzenDataGridColumn>
+                        <RadzenDataGridColumn TextAlign="TextAlign.Center" TItem="SuiteExecution" Sortable="false" Filterable="false" Width="@ActionsColumnWidth">
+                            <Template Context="data">
+                                <div class="btn-group w-100">
+                                    <a class="btn btn-grape" title="Report" href="/suiteExecutions/report/suiteExecutions/@data.SuiteExecutionId/@data.BusinessProcessId/@TestApplicationId">
+                                        <span class="oi oi-pie-chart" aria-hidden="true"></span>
+                                    </a>
+                                    @if (ShowActionButtons)
+                                    {
+                                        <button class="btn btn-caution" title="Delete" @onclick="() => Delete(data.SuiteExecutionId)">
+                                            <span class="oi oi-trash" aria-hidden="true"></span>
+                                        </button>
+                                    }
+                                </div>
+                            </Template>
+                        </RadzenDataGridColumn>
+                    </Columns>
+                </RadzenDataGrid>
+            }
+        </div>
+    </div>
+</div>
+
+@if (IsLoading)
+{
+    <div class="modal fade show" style="display:block" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-sm modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header bg-blueberry">
+                    <h5 class="modal-title"><span class="oi oi-clock" aria-hidden="true"></span> Wait...</h5>
+                </div>
+                <div class="modal-body" style="min-height:250px">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+@code {
+    [Parameter]
+    public String BusinessProcessId { get; set; }
+
+    [Parameter]
+    public String TestApplicationId { get; set; }
+
+    private IList<SuiteExecution> SuiteExecutions;
+    private IEnumerable<String> SelectedRoles;
+    private List<String> Roles = new();
+    private SuiteExecution SuiteExecution = new();
+    private BusinessProcess BusinessProcess = new();
+    private Boolean IsLoading = false;
+    private Boolean ShowActionButtons = false;
+    private String ActionsColumnWidth;
+    private String Role;
+    private String Id;
+
+    private async Task Export()
+    {
+        IsLoading = true;
+
+        try
+        {
+            var dataTable = new DataTable("Test suite executions");
+
+            dataTable.Columns.AddRange(new DataColumn[5]
+            {
+                new DataColumn("#"),
+                new DataColumn("Date and time of execution"),
+                new DataColumn("Executor"),
+                new DataColumn("Role"),
+                new DataColumn("Remarks")
+            });
+
+            foreach (var suiteExecution in SuiteExecutions)
+                dataTable.Rows.Add((SuiteExecutions.IndexOf(suiteExecution) + 1),
+                suiteExecution.ExecutionDate,
+                suiteExecution.User.DisplayName,
+                suiteExecution.User.UserRoles.FirstOrDefault().Role.Name,
+                suiteExecution.Remarks);
+
+            var workBook = new XLWorkbook();
+            var workSheet = workBook.Worksheets.Add(dataTable);
+
+            workSheet.RangeUsed().Style.Font.FontName = "Cambria";
+            workSheet.ColumnsUsed().AdjustToContents();
+
+            var memoryStream = new MemoryStream();
+
+            workBook.SaveAs(memoryStream);
+
+            await FileSaver.SaveAsync($"Test suite executions ({BusinessProcess.Name}).xlsx", memoryStream, default);
+        }
+        catch (Exception)
+        {
+            await App.Current.MainPage.DisplayAlert("Incorrect", "An unexpected error occurred!", "Ok");
+        }
+
+        await Task.Delay(1000);
+
+        IsLoading = false;
+    }
+
+    private async Task LoadRoles()
+    {
+        var roles = await rolesService.GetRolesAsync();
+
+        foreach (var role in roles)
+            Roles.Add(role.Name);
+    }
+
+    private void OnSelectedRolesChange(Object value)
+    {
+        if (SelectedRoles != null && !SelectedRoles.Any())
+            SelectedRoles = null;
+    }
+
+    private async Task LoadSuiteExecutions() => SuiteExecutions = await suiteExecutionsService.GetSuiteExecutionsAsync(BusinessProcessId, Id);
+
+    private async Task Delete(String suiteExecutionId)
+    {
+        if (await App.Current.MainPage.DisplayAlert("Delete", "Are you sure to delete this suite execution?", "Yes", "No"))
+        {
+			if (Connectivity.NetworkAccess == NetworkAccess.Internet)
+            {
+                await suiteExecutionsService.DeleteSuiteExecutionAsync(suiteExecutionId);
+                await LoadSuiteExecutions();
+			}
+			else
+				await App.Current.MainPage.DisplayAlert("Connection error", "Please check your internet connection and try again!", "Ok");
+		}
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Preferences.ContainsKey("id"))
+            Id = Preferences.Get("id", null) as String;
+
+        if (Preferences.ContainsKey("role"))
+            Role = Preferences.Get("role", null) as String;
+
+        if (Role == "Root" || Role == "Manager" || Role == "Administrator" || Role == "Automator")
+        {
+            ShowActionButtons = true;
+            ActionsColumnWidth = "120px";
+        }
+        else
+            ActionsColumnWidth = "80px";
+
+        if (Connectivity.NetworkAccess == NetworkAccess.Internet)
+        {
+            await LoadSuiteExecutions();
+            await LoadRoles();
+
+            BusinessProcess = await businessProcessesService.GetBusinessProcessAsync(BusinessProcessId);
+        }
+        else
+        {
+            await App.Current.MainPage.DisplayAlert("Connection error", "Please check your internet connection and try again!", "Ok");
+
+            navigationManager.NavigateTo($"/suiteExecutions/list/{BusinessProcessId}/{TestApplicationId}", true);
+        }
+    }
+}

@@ -1,0 +1,62 @@
+﻿@model IEnumerable<Execution>
+@{
+    ViewData["Title"] = "Report";
+}
+
+<div class="modal-content">
+    <div class="modal-header bg-blueberry">
+        <h5 class="modal-title"><i class="fa fa-chart-pie"></i> @ViewBag.Title</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+    </div>
+    <div class="modal-body">
+        <div class="card mb-3">
+            <div class="chart-container">
+                <canvas id="chart"></canvas>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-12 col-lg-12 col-xl-12">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="d-flex justify-content-between">
+                            <h5 class="h5 mb-2 mt-2"><i class="fa fa-clipboard-check"></i> Executed test cases</h5>
+                            <div class="btn-toolbar mb-2 mb-md-0">
+                                <div class="btn-group btn-sm" id="downloadReport"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <table id="executionsTable" class="table table-sm table-bordered table-striped" cellspacing="0" width="100%">
+                            <thead class="thead-grass">
+                                <tr>
+                                    <th></th>
+                                    <th>@Html.DisplayNameFor(execution => execution.TestCase.Name)</th>
+                                    <th>@Html.DisplayNameFor(execution => execution.ExecutionDate)</th>
+                                    <th>@Html.DisplayNameFor(execution => execution.TestEnvironment)</th>
+                                    <th>@Html.DisplayNameFor(execution => execution.User.DisplayName)</th>
+                                    <th>@Html.DisplayNameFor(execution => execution.User.Company.Name)</th>
+                                    <th>Role</th>
+                                    <th>@Html.DisplayNameFor(execution => execution.ExecutionStatus)</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tfoot>
+                                <tr>
+                                    <th></th>
+                                    <th>@Html.DisplayNameFor(execution => execution.TestCase.Name)</th>
+                                    <th>@Html.DisplayNameFor(execution => execution.ExecutionDate)</th>
+                                    <th>@Html.DisplayNameFor(execution => execution.TestEnvironment)</th>
+                                    <th>@Html.DisplayNameFor(execution => execution.User.DisplayName)</th>
+                                    <th>@Html.DisplayNameFor(execution => execution.User.Company.Name)</th>
+                                    <th>Role</th>
+                                    <th>@Html.DisplayNameFor(execution => execution.ExecutionStatus)</th>
+                                    <th></th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

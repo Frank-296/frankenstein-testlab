@@ -1,0 +1,286 @@
+﻿@page "/defects/create/{from}/{executionId}/{testCaseId}/{businessProcessId}/{testApplicationId}"
+@inject IExecutionsStore<Execution> executionsService
+@inject IDefectsStore<Defect> defectsService
+@inject IUsersStore<User, RegisterUserViewModel, UpdateUserViewModel> usersService
+@inject NavigationManager navigationManager
+
+<div>
+	<div class="p-4">
+		<div class="card">
+			<div class="card-header bg-blueberry">
+				<div class="d-flex justify-content-between">
+					<h5 class="h5 mb-2 mt-2"><span class="oi oi-bug" aria-hidden="true"></span> Report defect</h5>
+					<div class="btn-toolbar mb-2 mb-md-0">
+						<div class="btn-group btn-sm">
+							<a class="btn btn-storm" href="/executions/result/@From/@ExecutionId/@TestCaseId/@BusinessProcessId/@TestApplicationId"><span class="oi oi-media-skip-backward"></span> Go back</a>
+						</div>
+					</div>
+				</div>
+			</div>
+			<div class="card-body">
+				<EditForm Model="Defect">
+					<div class="form-floating mb-3">
+						<InputText class="form-control" placeholder="Executor" @bind-Value="Tester" disabled></InputText>
+						<label>Executor</label>
+					</div>
+					<div class="form-floating mb-3">
+						<InputText class="form-control" placeholder="Date and time of execution" @bind-Value="ExecutionDate" disabled></InputText>
+						<label>Date and time of execution</label>
+					</div>
+					<div class="form-floating mb-3">
+						<InputText class="form-control" placeholder="Test application" @bind-Value="TestApplication.Name" disabled></InputText>
+						<label>Test application</label>
+					</div>
+					<div class="form-floating mb-3">
+						<InputText class="form-control" placeholder="Business process" @bind-Value="BusinessProcess.Name" disabled></InputText>
+						<label>Business process</label>
+					</div>
+					<div class="form-floating mb-3">
+						<InputText class="form-control" placeholder="Test case" @bind-Value="TestCase.Name" disabled></InputText>
+						<label>Test case</label>
+					</div>
+					<div class="form-floating mb-3">
+						<InputSelect class="form-select" placeholder="Defect priority" @bind-Value="Defect.DefectPriority">
+							<option value="0" disabled selected>Select defect priority</option>
+							@foreach (var defectPriority in Enum.GetValues(typeof(DefectPriority)))
+							{
+								<option value="@defectPriority">@defectPriority</option>
+							}
+						</InputSelect>
+						<label>Defect priority</label>
+					</div>
+					<div class="form-floating mb-3">
+						<InputSelect class="form-select" placeholder="Defect severity" @bind-Value="Defect.DefectSeverity">
+							<option value="0" disabled selected>Select defect severity</option>
+							@foreach (var defectSeverity in Enum.GetValues(typeof(DefectSeverity)))
+							{
+								<option value="@defectSeverity">@defectSeverity</option>
+							}
+						</InputSelect>
+						<label>Defect severity</label>
+					</div>
+					<div class="form-floating mb-3">
+						<InputSelect class="form-select" placeholder="Defect status" @bind-Value="Defect.DefectStatus">
+							<option value="0" disabled selected>Select defect status</option>
+							@foreach (var defectStatus in Enum.GetValues(typeof(DefectStatus)))
+							{
+								<option value="@defectStatus">@defectStatus</option>
+							}
+						</InputSelect>
+						<label>Defect status</label>
+					</div>
+					<div class="form-floating mb-3">
+						<select class="form-select" placeholder="Assignee" @onchange="((ChangeEventArgs e) => LoadAutomator(e.Value.ToString()))">
+							<option value="" disabled selected>Select automator</option>
+							@foreach (var automator in Automators)
+							{
+								<option value="@automator.Id">@automator.Email | @automator.DisplayName</option>
+							}
+						</select>
+						<label>Assignee</label>
+					</div>
+					<div class="form-floating mb-3">
+						<InputText class="form-control" placeholder="Summary" @bind-Value="Defect.Summary"></InputText>
+						<label>Summary</label>
+					</div>
+					<div class="form-floating mb-3">
+						<InputTextArea class="form-control" placeholder="Description (Steps to replicate bug)" style="height:300px" @bind-Value="Defect.Description"></InputTextArea>
+						<label>Description (Steps to replicate bug)</label>
+					</div>
+					<div class="card">
+						<div class="card-header">
+							<div class="d-flex justify-content-between">
+								<label><span class="oi oi-clipboard" aria-hidden="true"></span> Evidence</label>
+							</div>
+						</div>
+						<div class="card-body">
+							<iframe srcdoc="@HtmlReportString" frameborder="0" allowfullscreen style="position:relative; height:70vh; width:100%; pointer-events: none;"></iframe>
+						</div>
+					</div>
+				</EditForm>
+			</div>
+			<div class="card-footer">
+				<div class="btn-group btn-sm w-100">
+					<button class="btn btn-confirm" @onclick="Save"><span class="oi oi-check" aria-hidden="true"></span> Accept</button>
+					@if (From == "testSuite")
+					{
+						<a class="btn btn-mist" href="/executions/result/@From/@ExecutionId/@TestCaseId/@BusinessProcessId/@TestApplicationId"><span class="oi oi-ban" aria-hidden="true"></span> Cancel</a>
+					}
+					else
+					{
+						<a class="btn btn-mist" href="/executions/result/@From/@ExecutionId/@TestCaseId/@BusinessProcessId/@TestApplicationId"><span class="oi oi-ban" aria-hidden="true"></span> Cancel</a>
+					}
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+@code {
+	[Parameter]
+	public String From { get; set; }
+
+	[Parameter]
+	public String ExecutionId { get; set; }
+
+	[Parameter]
+	public String TestCaseId { get; set; }
+
+	[Parameter]
+	public String BusinessProcessId { get; set; }
+
+	[Parameter]
+	public String TestApplicationId { get; set; }
+
+	private IList<User> Automators = new List<User>();
+	private Defect Defect = new();
+	private TestApplication TestApplication = new();
+	private BusinessProcess BusinessProcess = new();
+	private TestCase TestCase = new();
+	private Execution Execution = new();
+	private String HtmlReportString;
+	private String Recipient;
+	private String Tester;
+	private String ExecutionDate;
+	private String Id;
+
+	private async Task LoadAutomators() => Automators = await usersService.GetUsersAsync(null);
+
+	private async Task LoadAutomator(String id)
+	{
+		if (Connectivity.NetworkAccess == NetworkAccess.Internet)
+		{
+			var automator = await usersService.GetUserAsync(id);
+
+			Defect.UserId = automator.Id;
+			Recipient = automator.Email;
+		}
+		else
+			await App.Current.MainPage.DisplayAlert("Connection error", "Please check your internet connection and try again!", "Ok");
+	}
+
+	private async Task LoadTestReport()
+	{
+		if (Execution != null)
+		{
+			var execution = await executionsService.GetExecutionAsync(ExecutionId, true, false);
+
+			Execution.TestReport = execution.TestReport;
+
+			HtmlReportString = Encoding.Default.GetString(Compression.Decompress(Execution.TestReport));
+		}
+	}
+
+	private async Task LoadTestData()
+	{
+		if (Execution != null)
+		{
+			var execution = await executionsService.GetExecutionAsync(ExecutionId, false, true);
+
+			Execution.TestData = execution.TestData;
+		}
+	}
+
+	private async Task Save()
+	{
+		if (String.IsNullOrEmpty(Defect.Summary) && String.IsNullOrWhiteSpace(Defect.Summary) ||
+			String.IsNullOrEmpty(Defect.Description) && String.IsNullOrWhiteSpace(Defect.Description) ||
+			String.IsNullOrEmpty(Defect.UserId) && String.IsNullOrWhiteSpace(Defect.UserId) ||
+			Defect.DefectPriority == 0 && Defect.DefectSeverity == 0 && Defect.DefectStatus == 0)
+			await App.Current.MainPage.DisplayAlert("Warning", "One or more fields are empty!", "Ok");
+		else
+		{
+			if (Connectivity.NetworkAccess == NetworkAccess.Internet)
+			{
+				Defect.DefectId = Guid.NewGuid().ToString();
+				Defect.ExecutionId = ExecutionId;
+
+				var result = await defectsService.AddDefectAsync(Defect, navigationManager);
+
+				if (result != null)
+				{
+					if (Email.Default.IsComposeSupported)
+					{
+						var subject = $"Bug found when executing the automated test case called: {Execution.TestCase.Name}; Test case executed by: {Tester}";
+						var body = $"Defect priority: {Defect.DefectPriority}\n"
+							+ $"Defect severity: {Defect.DefectSeverity}\n"
+							+ $"Defect status: {Defect.DefectStatus}\n\n"
+							+ $"Defect summary: {Defect.Summary}\n\n"
+							+ $"Defect description:\n{Defect.Description}\n\n"
+							+ $"The generated execution report and the used test data file are attached.\n\n"
+							+ $"Regards!";
+
+						String[] recipients = new[] { Recipient };
+
+						var message = new EmailMessage
+							{
+								Subject = subject,
+								Body = body,
+								BodyFormat = EmailBodyFormat.PlainText,
+								To = new List<String>(recipients)
+							};
+
+						if (Execution.TestData != null)
+						{
+							File.WriteAllBytes(Path.Combine(FileSystem.CacheDirectory, $"{Execution.TestCase.Name}.xlsx"), Execution.TestData);
+
+							var testDataPath = Path.Combine(FileSystem.CacheDirectory, $"{Execution.TestCase.Name}.xlsx");
+
+							message.Attachments.Add(new EmailAttachment(testDataPath));
+						}
+
+						File.WriteAllBytes(Path.Combine(FileSystem.CacheDirectory, "index.html"), Compression.Decompress(Execution.TestReport));
+
+						var reportPath = Path.Combine(FileSystem.CacheDirectory, "index.html");
+
+						message.Attachments.Add(new EmailAttachment(reportPath));
+
+						await Email.Default.ComposeAsync(message);
+					}
+				}
+			}
+			else
+				await App.Current.MainPage.DisplayAlert("Connection error", "Please check your internet connection and try again!", "Ok");
+		}
+	}
+
+	protected override async Task OnInitializedAsync()
+	{
+		if (Preferences.ContainsKey("id"))
+			Id = Preferences.Get("id", null) as String;
+
+		if (Connectivity.NetworkAccess == NetworkAccess.Internet)
+		{
+			Execution = await executionsService.GetExecutionAsync(ExecutionId, false, false);
+
+			if (Execution != null)
+			{
+				TestCase = Execution.TestCase;
+				BusinessProcess = Execution.TestCase.BusinessProcess;
+				TestApplication = Execution.TestCase.BusinessProcess.TestApplication;
+				Tester = Execution.User.DisplayName;
+				ExecutionDate = Execution.ExecutionDate.ToString();
+
+				var task = Task.Run(async () => await LoadTestReport());
+
+				task.Wait();
+
+				await task.ContinueWith(_ => LoadTestData().Wait());
+			}
+			else
+			{
+				await App.Current.MainPage.DisplayAlert("Incorrect", "No execution information found!", "Ok");
+
+				navigationManager.NavigateTo($"/executions/result/{From}/{ExecutionId}/{TestCaseId}/{BusinessProcessId}/{TestApplicationId}");
+			}
+
+			await LoadAutomators();
+		}
+		else
+		{
+			await App.Current.MainPage.DisplayAlert("Connection error", "Please check your internet connection and try again!", "Ok");
+
+			navigationManager.NavigateTo($"/defects/create/{From}/{ExecutionId}/{TestCaseId}/{BusinessProcessId}/{TestApplicationId}", true);
+		}
+	}
+}

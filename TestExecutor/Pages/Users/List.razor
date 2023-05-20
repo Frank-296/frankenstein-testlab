@@ -1,0 +1,494 @@
+﻿@page "/users/list"
+@inject IUsersStore<User, RegisterUserViewModel, UpdateUserViewModel> usersService
+@inject ICompaniesStore<Company> companiesService
+@inject IRolesStore<Role> rolesService
+@inject NavigationManager navigationManager
+
+<div class="p-4">
+	<div class="card">
+		<div class="card-header bg-blueberry">
+			<div class="d-flex justify-content-between">
+				<h5 class="h5 mb-2 mt-2"><span class="oi oi-people" aria-hidden="true"></span> Users</h5>
+				<div class="btn-toolbar mb-2 mb-md-0">
+					<div class="btn-group btn-sm">
+						@if (Role == "Root" || Role == "Manager" || Role == "Administrator")
+						{
+							if (Users != null)
+							{
+								<button class="btn btn-kiwi" @onclick="Export"><span class="oi oi-data-transfer-download"></span> Export data</button>
+							}
+							<button class="btn btn-grass" @onclick="Create"><span class="oi oi-plus" aria-hidden="true"></span> Add</button>
+						}
+					</div>
+				</div>
+			</div>
+		</div>
+		<div class="card-body">
+			@if (Users == null)
+			{
+				<p><em>Loading...</em></p>
+			}
+			else
+			{
+				<RadzenDataGrid AllowFiltering="true" FilterMode="FilterMode.Simple" FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive" AllowColumnResize="true"
+							AllowPaging="true" AllowSorting="true" Data="Users" TItem="User" ColumnWidth="180px" Style="height:585px">
+					<Columns>
+						<RadzenDataGridColumn Frozen="true" TItem="User" Filterable="false" Sortable="false" TextAlign="TextAlign.Center" Width="50px">
+							<Template>
+								@(Users.IndexOf(context) + 1)
+							</Template>
+						</RadzenDataGridColumn>
+						<RadzenDataGridColumn Frozen="true" TItem="User" Property="Email" Title="Email">
+							<FooterTemplate>
+								Total records: <b>@Users.Count()</b>
+							</FooterTemplate>
+						</RadzenDataGridColumn>
+						<RadzenDataGridColumn TItem="User" Property="DisplayName" Title="Name"></RadzenDataGridColumn>
+						<RadzenDataGridColumn TItem="User" Property="PhoneNumber" Title="Phone number"></RadzenDataGridColumn>
+						<RadzenDataGridColumn TItem="User" Property="Company.Name" Title="Company" Type="typeof(IEnumerable<String>)"
+										  FilterValue="SelectedCompanies" FilterOperator="FilterOperator.Contains" LogicalFilterOperator="LogicalFilterOperator.Or">
+							<FilterTemplate>
+								<RadzenDropDown @bind-Value=SelectedCompanies Style="width:100%"
+											Change=OnSelectedCompaniesChange Data="CompaniesFilter" AllowClear="true" Multiple="true" />
+							</FilterTemplate>
+						</RadzenDataGridColumn>
+						<RadzenDataGridColumn TItem="User" Property="UserRoles.FirstOrDefault().Role.Name" Title="Role" Type="typeof(IEnumerable<String>)"
+										  FilterValue="SelectedRoles" FilterOperator="FilterOperator.Contains" LogicalFilterOperator="LogicalFilterOperator.Or">
+							<FilterTemplate>
+								<RadzenDropDown @bind-Value=SelectedRoles Style="width:100%"
+											Change=OnSelectedRolesChange Data="Roles" AllowClear="true" Multiple="true" />
+							</FilterTemplate>
+							<Template Context="data">
+								<span>@data.UserRoles.FirstOrDefault().Role.Name</span>
+							</Template>
+						</RadzenDataGridColumn>
+						<RadzenDataGridColumn TextAlign="TextAlign.Center" TItem="User" Property="IsAuthorized" Title="Status" Width="100px">
+							<Template Context="data">
+								@(data.IsAuthorized == true ? "Active" : "Inactive")
+							</Template>
+						</RadzenDataGridColumn>
+						<RadzenDataGridColumn TextAlign="TextAlign.Center" TItem="User" Sortable="false" Filterable="false" Width="180px">
+							<Template Context="data">
+								<div class="btn-group w-100">
+									@if (Id == data.Id)
+									{
+										<button class="btn btn-grape" title="Reset password" disabled>
+											<span class="oi oi-key" aria-hidden="true"></span>
+										</button>
+										<button class="btn btn-olive" title="Edit" disabled>
+											<span class="oi oi-pencil" aria-hidden="true"></span>
+										</button>
+										<button class="btn btn-caution" title="Delete" disabled>
+											<span class="oi oi-trash" aria-hidden="true"></span>
+										</button>
+									}
+									else
+									{
+										<button class="btn btn-grape" title="Reset password" @onclick="() => ResetPassword(data.Id)">
+											<span class="oi oi-key" aria-hidden="true"></span>
+										</button>
+										<button class="btn btn-olive" title="Edit" @onclick="() => Edit(data.Id)">
+											<span class="oi oi-pencil" aria-hidden="true"></span>
+										</button>
+										<button class="btn btn-caution" title="Delete" @onclick="() => Delete(data.Id)">
+											<span class="oi oi-trash" aria-hidden="true"></span>
+										</button>
+									}
+								</div>
+							</Template>
+						</RadzenDataGridColumn>
+					</Columns>
+				</RadzenDataGrid>
+			}
+		</div>
+	</div>
+</div>
+
+@if (ShowCreateModal)
+{
+	<div class="modal fade show" style="display:block" tabindex="-1">
+		<div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+			<div class="modal-content">
+				<div class="modal-header bg-blueberry">
+					<h5 class="modal-title"><span class="oi oi-plus" aria-hidden="true"></span> New user</h5>
+					<button type="button" class="btn-close btn-close-white" @onclick="() => Cancel(1)"></button>
+				</div>
+				<div class="modal-body">
+					<EditForm Model="RegisterUser">
+						@if (Role == "Root" || Role == "Manager")
+						{
+							<div class="form-floating mb-3">
+								<select class="form-select" placeholder="Company" @onchange="((ChangeEventArgs e) => LoadCompany(e.Value.ToString()))">
+									<option value="" disabled selected>Select company</option>
+									@foreach (var company in Companies)
+									{
+										<option value="@company.CompanyId">@company.Name</option>
+									}
+								</select>
+								<label>Company</label>
+							</div>
+						}
+						<div class="form-floating mb-3">
+							<InputSelect class="form-select" placeholder="Rol" @bind-Value="RegisterUser.Role">
+								<option value="" disabled selected>Select role</option>
+								@foreach (var role in Roles)
+								{
+									<option value="@role">@role</option>
+								}
+							</InputSelect>
+							<label>Role</label>
+						</div>
+						<div class="input-group mb-3">
+							<div class="form-floating form-floating-group flex-grow-1">
+								<InputText class="form-control" placeholder="Email" @bind-Value="UserName"></InputText>
+								<label>Email</label>
+							</div>
+							<span class="input-group-text">@Domain</span>
+						</div>
+						<div class="form-floating">
+							<InputText class="form-control" placeholder="Default password" @bind-Value="DefaultPassword" disabled></InputText>
+							<label>Default password</label>
+						</div>
+					</EditForm>
+				</div>
+				<div class="modal-footer bg-light">
+					<div class="btn-group btn-sm w-100">
+						<button class="btn btn-confirm" @onclick="() => Save(1)"><span class="oi oi-check" aria-hidden="true"></span> Accept</button>
+						<button type="button" class="btn btn-mist" @onclick="() => Cancel(1)"><span class="oi oi-ban" aria-hidden="true"></span> Cancel</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="modal-backdrop fade show"></div>
+}
+
+@if (ShowEditModal)
+{
+	<div class="modal fade show" style="display:block" tabindex="-1">
+		<div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+			<div class="modal-content">
+				<div class="modal-header bg-blueberry">
+					<h5 class="modal-title"><span class="oi oi-pencil" aria-hidden="true"></span> Edit user</h5>
+					<button type="button" class="btn-close btn-close-white" @onclick="() => Cancel(2)"></button>
+				</div>
+				<div class="modal-body">
+					<EditForm Model="User">
+						<div class="form-floating mb-3">
+							<InputText class="form-control" placeholder="Email" @bind-Value="User.Email" disabled></InputText>
+							<label>Email</label>
+						</div>
+						<div class="form-floating mb-3">
+							<InputText class="form-control" placeholder="Current role" @bind-Value="User.UserRoles.FirstOrDefault().Role.Name" disabled></InputText>
+							<label>Current role</label>
+						</div>
+						<div class="form-floating mb-3">
+							<InputSelect class="form-select" placeholder="New role" @bind-Value="NewRole">
+								<option value="" disabled selected>Select role</option>
+								@foreach (var role in Roles)
+								{
+									<option value="@role">@role</option>
+								}
+							</InputSelect>
+							<label>New role</label>
+						</div>
+						<div class="form-check">
+							<InputCheckbox id="status" class="form-check-input" typeof="checkbox" @bind-Value="User.IsAuthorized"></InputCheckbox>
+							<label for="status" class="form-check-label">Activate/Deactivate</label>
+						</div>
+					</EditForm>
+				</div>
+				<div class="modal-footer bg-light">
+					<div class="btn-group btn-sm w-100">
+						<button class="btn btn-confirm" @onclick="() => Save(2)"><span class="oi oi-check" aria-hidden="true"></span> Accept</button>
+						<button type="button" class="btn btn-mist" @onclick="() => Cancel(2)"><span class="oi oi-ban" aria-hidden="true"></span> Cancel</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="modal-backdrop fade show"></div>
+}
+
+@if (IsLoading)
+{
+	<div class="modal fade show" style="display:block" tabindex="-1">
+		<div class="modal-dialog modal-dialog-centered modal-sm modal-dialog-scrollable">
+			<div class="modal-content">
+				<div class="modal-header bg-blueberry">
+					<h5 class="modal-title"><span class="oi oi-clock" aria-hidden="true"></span> Wait...</h5>
+				</div>
+				<div class="modal-body" style="min-height:250px">
+					<div class="spinner"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="modal-backdrop fade show"></div>
+}
+
+@code {
+	private IList<User> Users;
+	private IList<Company> Companies;
+	private IEnumerable<String> SelectedCompanies;
+	private IEnumerable<String> SelectedRoles;
+	private List<String> CompaniesFilter = new();
+	private List<String> Roles = new();
+	private RegisterUserViewModel RegisterUser = new();
+	private User User = new();
+	private Boolean IsLoading = false;
+	private Boolean ShowCreateModal = false;
+	private Boolean ShowEditModal = false;
+	private String DefaultPassword = $"T3$tLab{DateTime.Now.Year}";
+	private String UserName;
+	private String Domain;
+	private String NewRole = null;
+	private String Role;
+	private String Id;
+	private String CompanyId;
+
+	private async Task Export()
+	{
+		IsLoading = true;
+
+		try
+		{
+			var dataTable = new DataTable("Users");
+
+			dataTable.Columns.AddRange(new DataColumn[8]
+			{
+				new DataColumn("#"),
+				new DataColumn("Email"),
+				new DataColumn("Name"),
+				new DataColumn("Phone number"),
+				new DataColumn("Registration date"),
+				new DataColumn("Company"),
+				new DataColumn("Role"),
+				new DataColumn("Status")
+			});
+
+			foreach (var user in Users)
+				dataTable.Rows.Add((Users.IndexOf(user) + 1),
+				user.Email,
+				user.DisplayName,
+				user.PhoneNumber,
+				user.RegistrationDate,
+				user.Company.Name,
+				user.UserRoles.FirstOrDefault().Role.Name,
+				user.IsAuthorized == true ? "Active" : "Inactive");
+
+			var workBook = new XLWorkbook();
+			var workSheet = workBook.Worksheets.Add(dataTable);
+
+			workSheet.RangeUsed().Style.Font.FontName = "Cambria";
+			workSheet.ColumnsUsed().AdjustToContents();
+
+			var memoryStream = new MemoryStream();
+
+			workBook.SaveAs(memoryStream);
+
+			await FileSaver.SaveAsync($"Users.xlsx", memoryStream, default);
+		}
+		catch (Exception)
+		{
+			await App.Current.MainPage.DisplayAlert("Incorrect", "An unexpected error occurred!", "Ok");
+		}
+
+		await Task.Delay(1000);
+
+		IsLoading = false;
+	}
+
+	private void OnSelectedCompaniesChange(Object value)
+	{
+		if (SelectedCompanies != null && !SelectedCompanies.Any())
+			SelectedCompanies = null;
+	}
+
+	private void OnSelectedRolesChange(Object value)
+	{
+		if (SelectedRoles != null && !SelectedRoles.Any())
+			SelectedRoles = null;
+	}
+
+	private async Task LoadUsers() => Users = await usersService.GetUsersAsync(Id);
+
+	private async Task LoadCompanies()
+	{
+		Companies = await companiesService.GetCompaniesAsync();
+
+		foreach (var company in Companies)
+			CompaniesFilter.Add(company.Name);
+	}
+
+	private async Task LoadRoles()
+	{
+		var roles = await rolesService.GetRolesAsync();
+
+		foreach (var role in roles)
+			Roles.Add(role.Name);
+
+		if (Role == "Administrator")
+			Roles = Roles.Where(r => r != "Manager" && r != "Developer").ToList();
+	}
+
+	private async Task LoadCompany(String companyId)
+	{
+		if (Connectivity.NetworkAccess == NetworkAccess.Internet)
+		{
+			var company = await companiesService.GetCompanyAsync(companyId);
+
+			RegisterUser.CompanyId = company.CompanyId;
+			Domain = company.Domain;
+		}
+		else
+			await App.Current.MainPage.DisplayAlert("Connection error", "Please check your internet connection and try again!", "Ok");
+	}
+
+	private async Task Create()
+	{
+		if (CompanyId != null)
+			await LoadCompany(CompanyId);
+
+		ShowCreateModal = true;
+	}
+
+	private async Task ResetPassword(String id)
+	{
+		if (await App.Current.MainPage.DisplayAlert("Reset password", "Are you sure to reset this user's password?", "Yes", "No"))
+			if (Connectivity.NetworkAccess == NetworkAccess.Internet)
+				await usersService.ResetUserPasswordAsync(id);
+			else
+				await App.Current.MainPage.DisplayAlert("Connection error", "Please check your internet connection and try again!", "Ok");
+	}
+
+	private async Task Edit(String id)
+	{
+		if (Connectivity.NetworkAccess == NetworkAccess.Internet)
+		{
+			User = await usersService.GetUserAsync(id);
+
+			if (User != null)
+				ShowEditModal = true;
+			else
+				await App.Current.MainPage.DisplayAlert("Incorrect", "User information not found!", "Ok");
+		}
+		else
+			await App.Current.MainPage.DisplayAlert("Connection error", "Please check your internet connection and try again!", "Ok");
+	}
+
+	private async Task Save(Int32 action)
+	{
+		if (Connectivity.NetworkAccess == NetworkAccess.Internet)
+		{
+			if (action == 1)
+			{
+				if (String.IsNullOrEmpty(UserName) && String.IsNullOrWhiteSpace(UserName) ||
+					String.IsNullOrEmpty(RegisterUser.Role) && String.IsNullOrWhiteSpace(RegisterUser.Role))
+					await App.Current.MainPage.DisplayAlert("Warning", "One or more fields are empty!", "Ok");
+				else
+				{
+					var username = String.Concat(UserName.TakeWhile(x => x != '@'));
+					var email = $"{username}{Domain}";
+
+					Boolean IsValidEmail() => new EmailAddressAttribute().IsValid(email);
+
+					if (!IsValidEmail())
+						await App.Current.MainPage.DisplayAlert("Warning", "The email entered is invalid!", "Ok");
+					else
+					{
+						RegisterUser.Email = email;
+						RegisterUser.RegistrationDate = DateTime.Now;
+						RegisterUser.SetPasswordDate = DateTime.Now;
+						RegisterUser.IsAuthorized = true;
+
+						var user = await usersService.AddUserAsync(RegisterUser);
+
+						if (user != null)
+						{
+							ShowCreateModal = false;
+							RegisterUser = new();
+							UserName = null;
+							Domain = null;
+						}
+					}
+				}
+			}
+			else
+			{
+				var updateUser = new UpdateUserViewModel()
+					{
+						Id = User.Id,
+						Role = NewRole,
+						IsAuthorized = User.IsAuthorized
+					};
+
+				await usersService.UpdateUserAsync(updateUser);
+
+				ShowEditModal = false;
+				NewRole = null;
+				User = new();
+			}
+
+			await LoadUsers();
+		}
+		else
+			await App.Current.MainPage.DisplayAlert("Connection error", "Please check your internet connection and try again!", "Ok");
+	}
+
+	private void Cancel(Int32 action)
+	{
+		if (action == 1)
+		{
+			ShowCreateModal = false;
+			RegisterUser = new();
+			Domain = null;
+		}
+		else
+		{
+			ShowEditModal = false;
+			NewRole = null;
+			User = new();
+		}
+	}
+
+	private async Task Delete(String userId)
+	{
+		if (await App.Current.MainPage.DisplayAlert("Delete", "Are you sure to delete this user?", "Yes", "No"))
+		{
+			if (Connectivity.NetworkAccess == NetworkAccess.Internet)
+			{
+				await usersService.DeleteUserAsync(userId);
+				await LoadUsers();
+			}
+			else
+				await App.Current.MainPage.DisplayAlert("Connection error", "Please check your internet connection and try again!", "Ok");
+		}
+	}
+
+	protected override async Task OnInitializedAsync()
+	{
+		if (Preferences.ContainsKey("id"))
+			Id = Preferences.Get("id", null) as String;
+
+		if (Preferences.ContainsKey("role"))
+			Role = Preferences.Get("role", null) as String;
+
+		if (Role == "Administrator")
+			if (Preferences.ContainsKey("companyId"))
+				CompanyId = Preferences.Get("companyId", null) as String;
+
+		if (Connectivity.NetworkAccess == NetworkAccess.Internet)
+		{
+			await LoadCompanies();
+			await LoadRoles();
+			await LoadUsers();
+		}
+		else
+		{
+			await App.Current.MainPage.DisplayAlert("Connection error", "Please check your internet connection and try again!", "Ok");
+
+			navigationManager.NavigateTo($"/users/list", true);
+		}
+	}
+}

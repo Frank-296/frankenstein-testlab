@@ -1,0 +1,473 @@
+﻿@page "/suiteExecutions/execute/{businessProcessId}/{testApplicationId}"
+@inject IBusinessProcessesStore<BusinessProcess> businessProcessesService
+@inject ISuiteExecutionsStore<SuiteExecution> suiteExecutionsService
+@inject IExecutionsStore<Execution> executionsService
+@inject ITestCasesStore<TestCase> testCasesService
+@inject NavigationManager navigationManager
+
+<div>
+    <div class="p-4">
+        <div class="card">
+            <div class="card-header bg-blueberry">
+                <div class="d-flex justify-content-between">
+                    <h5 class="h5 mb-2 mt-2"><span class="oi oi-media-play" aria-hidden="true"></span> Execute suite (@BusinessProcess.Name)</h5>
+                    <div class="btn-toolbar mb-2 mb-md-0">
+                        <div class="btn-group btn-sm">
+                            <a class="btn btn-storm" href="/suiteExecutions/list/@BusinessProcessId/@TestApplicationId"><span class="oi oi-media-skip-backward"></span> Go back</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <EditForm Model="SuiteExecution">
+                    <div class="form-floating mb-3">
+                        <InputText class="form-control" placeholder="Executor" @bind-Value="Tester" disabled></InputText>
+                        <label>Executor</label>
+                    </div>
+                    <div class="form-floating mb-3">
+                        <InputText class="form-control" placeholder="Date and time of execution" @bind-Value="ExecutionDate" disabled></InputText>
+                        <label>Date and time of execution</label>
+                    </div>
+                    <div class="mb-3">
+                        @if (TestCases == null)
+						{
+							<p><em>Loading...</em></p>
+						}
+						else
+                        {
+                            <RadzenDataGrid @ref="Grid" Data="TestCases" TItem="TestCase" AllowRowSelectOnRowClick="AllowRowSelectOnRowClick" AllowColumnResize="true"
+                                        SelectionMode="DataGridSelectionMode.Multiple" @bind-Value=@SelectedTestCases ColumnWidth="250px" Style="height:300px">
+                                <Columns>
+                                    <RadzenDataGridColumn TItem="TestCase" Filterable="false" Sortable="false" TextAlign="TextAlign.Center" Width="50px">
+                                        <Template Context="data">
+                                            @(TestCases.IndexOf(data) + 1)
+                                        </Template>
+                                    </RadzenDataGridColumn>
+                                    <RadzenDataGridColumn TItem="TestCase" Property="Name" Title="Name">
+                                        <FooterTemplate>
+                                            Total records: <b>@TestCases.Count()</b>
+                                        </FooterTemplate>
+                                    </RadzenDataGridColumn>
+                                    <RadzenDataGridColumn TItem="TestCase" Property="Description" Title="Description"></RadzenDataGridColumn>
+                                    <RadzenDataGridColumn TextAlign="TextAlign.Center" TItem="TestCase" Property="Status" Title="Status" Width="100px">
+                                        <Template Context="data">
+                                            @(data.Status == true ? "Active" : "Inactive")
+                                        </Template>
+                                    </RadzenDataGridColumn>
+                                    <RadzenDataGridColumn TextAlign="TextAlign.Center" TItem="TestCase" Sortable="false" Filterable="false" Title="Actions" Width="120px">
+                                        <Template Context="data">
+                                            <div class="btn-group w-100">
+                                                <button class="btn btn-sky" title="Details" @onclick="() => ShowDetails(data.TestCaseId)">
+                                                    <span class="oi oi-info" aria-hidden="true"></span>
+                                                </button>
+                                                @if (data.TestDataIsRequired)
+                                                {
+                                                    if (data.TestData != null)
+                                                    {
+                                                        <button class="btn btn-grape" title="Download example test data" @onclick="() => Download(data.TestData, data.Name)">
+                                                            <span class="oi oi-data-transfer-download" aria-hidden="true"></span>
+                                                        </button>
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    <button class="btn btn-grape" title="Download example test data" disabled>
+                                                        <span class="oi oi-data-transfer-download" aria-hidden="true"></span>
+                                                    </button>
+                                                }
+                                            </div>
+                                        </Template>
+                                    </RadzenDataGridColumn>
+                                    <RadzenDataGridColumn TItem="TestCase" Sortable="false" Filterable="false" Title="Test data for execution">
+                                        <Template Context="data">
+                                            @if (data.TestDataIsRequired)
+                                            {
+                                                @if (SelectedTestCases.Any(c => c.TestCaseId == data.TestCaseId))
+                                                {
+                                                    <div class="file-input">
+                                                        <InputFile class="form-control" accept=".xlsx, xls" @key="data.InputFieldId" OnChange="@((InputFileChangeEventArgs args) => OnInputFileChange(args, data))"></InputFile>
+                                                    </div>
+                                                }
+                                                else
+                                                {
+                                                    <div class="file-input">
+                                                        <InputFile class="form-control" accept=".xlsx, xls" disabled></InputFile>
+                                                    </div>
+                                                }
+                                            }
+                                        </Template>
+                                    </RadzenDataGridColumn>
+                                    <RadzenDataGridColumn TItem="TestCase" Width="60px" Sortable="false" Filterable="false">
+                                        <HeaderTemplate>
+                                            <RadzenCheckBox TriState="false" TValue="Boolean" Value="@(TestCases.Any(c => SelectedTestCases != null && SelectedTestCases.Contains(c)))"
+                                                        Change="@(args => SelectedTestCases = args ? TestCases.ToList() : new List<TestCase>())" />
+                                        </HeaderTemplate>
+                                        <Template Context="data">
+                                            <RadzenCheckBox TriState="false" Value="@(SelectedTestCases != null && SelectedTestCases.Contains(data))"
+                                                        TValue="Boolean" Change=@(args => { if (!AllowRowSelectOnRowClick) { Grid.SelectRow(data); }}) />
+                                        </Template>
+                                    </RadzenDataGridColumn>
+                                </Columns>
+                            </RadzenDataGrid>
+						}
+                    </div>
+                    <div class="form-floating mb-3">
+                        <InputTextArea class="form-control" placeholder="Comments/Remarks" style="height:300px" @bind-Value="SuiteExecution.Remarks"></InputTextArea>
+                        <label>Comments/Remarks</label>
+                    </div>
+					<div class="form-floating mb-3">
+                        <InputSelect class="form-select" placeholder="Browser" @bind-Value="BrowserDriver">
+							<option value="0" disabled selected>Select browser</option>
+							@foreach (var browser in Enum.GetValues(typeof(BrowserDriver)))
+							{
+								<option value="@browser">@browser</option>
+							}
+						</InputSelect>
+						<label>Browser</label>
+					</div>
+					<div class="form-floating">
+                        <InputSelect class="form-select" placeholder="Environment" @bind-Value="TestEnvironment">
+							<option value="0" disabled selected>Select environment</option>
+							@foreach (var testEnvironment in Enum.GetValues(typeof(TestEnvironment)))
+							{
+								<option value="@testEnvironment">@testEnvironment</option>
+							}
+						</InputSelect>
+						<label>Environment</label>
+					</div>
+                </EditForm>
+            </div>
+            <div class="card-footer">
+                <div class="btn-group btn-sm w-100">
+                    <button class="btn btn-confirm" @onclick="Run"><span class="oi oi-play-circle" aria-hidden="true"></span> Run</button>
+                    <a class="btn btn-mist" href="/suiteExecutions/list/@BusinessProcessId/@TestApplicationId"><span class="oi oi-ban" aria-hidden="true"></span> Cancel</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (ShowDetailsModal)
+{
+	<div class="modal fade show" style="display:block" tabindex="-1">
+		<div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+			<div class="modal-content">
+				<div class="modal-header bg-blueberry">
+					<h5 class="modal-title"><span class="oi oi-info" aria-hidden="true"></span> Test case details</h5>
+					<button type="button" class="btn-close btn-close-white" @onclick="Close"></button>
+				</div>
+				<div class="modal-body">
+                    <EditForm Model="TestCase">
+                        <div class="form-floating mb-3">
+                            <InputSelect class="form-select" placeholder="Test type" @bind-Value="TestCase.TestType" disabled>
+                                <option value="0" disabled selected>Select test type</option>
+                                @foreach (var testType in Enum.GetValues(typeof(TestType)))
+                                {
+                                    <option value="@testType">@testType</option>
+                                }
+                            </InputSelect>
+                            <label>Test type</label>
+                        </div>
+						<div class="form-floating mb-3">
+							<InputText class="form-control" placeholder="Name" @bind-Value="TestCase.Name" disabled></InputText>
+							<label>Name</label>
+						</div>
+						<div class="form-floating mb-3">
+							<InputTextArea class="form-control" placeholder="Description" style="height:300px" @bind-Value="TestCase.Description" disabled></InputTextArea>
+							<label>Description</label>
+                        </div>
+                        <div class="form-floating mb-3">
+                            <InputTextArea class="form-control" placeholder="Preconditions" style="height:300px" @bind-Value="TestCase.Preconditions" disabled></InputTextArea>
+                            <label>Preconditions</label>
+                        </div>
+                        <div class="form-floating">
+                            <InputTextArea class="form-control" placeholder="Remarks" style="height:300px" @bind-Value="TestCase.Remarks" disabled></InputTextArea>
+                            <label>Remarks</label>
+                        </div>
+					</EditForm>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="modal-backdrop fade show"></div>
+}
+
+@if (IsLoading)
+{
+    <div class="modal fade show" style="display:block" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-sm modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header bg-blueberry">
+                    <h5 class="modal-title"><span class="oi oi-clock" aria-hidden="true"></span> @LoadingStatus</h5>
+                </div>
+                <div class="modal-body" style="min-height:250px">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+@code {
+    [Parameter]
+    public String BusinessProcessId { get; set; }
+
+    [Parameter]
+    public String TestApplicationId { get; set; }
+
+    private RadzenDataGrid<TestCase> Grid;
+    private IList<TestCase> TestCases;
+    private IList<TestCase> SelectedTestCases = new List<TestCase>();
+    private List<Execution> Executions = new();
+    private BusinessProcess BusinessProcess = new();
+    private SuiteExecution SuiteExecution = new();
+    private TestCase TestCase = new();
+    private TestEnvironment TestEnvironment;
+    private BrowserDriver BrowserDriver;
+    private Boolean IsLoading = false;
+    private Boolean AllowRowSelectOnRowClick = false;
+    private Boolean ShowDetailsModal = false;
+    private String Tester;
+    private String ExecutionDate;
+    private String LoadingStatus = "Waiting...";
+    private String SuiteExecutionId = Guid.NewGuid().ToString();
+    private String Id;
+
+    private async Task Download(Byte[] testData, String name)
+    {
+        LoadingStatus = "Wait...";
+        IsLoading = true;
+
+        try
+        {
+            var fileName = $"{name}.xlsx";
+            var stream = new MemoryStream(testData);
+
+            await FileSaver.SaveAsync(fileName, stream, default);
+        }
+        catch (Exception)
+        {
+            await App.Current.MainPage.DisplayAlert("Incorrect", "An unexpected error occurred!", "Ok");
+        }
+
+        await Task.Delay(1000);
+
+        IsLoading = false;
+    }
+
+    private async Task OnInputFileChange(InputFileChangeEventArgs e, TestCase testCase)
+    {
+        var testData = e.File;
+        var fileStream = testData.OpenReadStream();
+        var memoryStream = new MemoryStream();
+
+        await fileStream.CopyToAsync(memoryStream);
+
+        try
+        {
+            var workBook = new XLWorkbook(memoryStream);
+            var workSheet = workBook.Worksheet(1);
+
+            if (!(workSheet.RangeUsed().RowsUsed().Count() >= 2))
+            {
+                await App.Current.MainPage.DisplayAlert("Warning", "The selected file is empty!", "Ok");
+
+                testCase.InputFieldId = Guid.NewGuid();
+            }
+            else
+            {
+                var newExecution = new Execution
+                {
+                    ExecutionId = Guid.NewGuid().ToString(),
+                    TestCaseId = testCase.TestCaseId,
+                    SuiteExecutionId = SuiteExecutionId,
+                    UserId = Id,
+                    TestData = memoryStream.ToArray()
+                };
+
+                var execution = Executions.Where(e => e.TestCaseId == newExecution.TestCaseId).FirstOrDefault();
+
+                if (execution != null)
+                    Executions.Remove(execution);
+
+                Executions.Add(newExecution);
+            }
+        }
+        catch (Exception)
+        {
+            await App.Current.MainPage.DisplayAlert("Warning", "The selected file is invalid!", "Ok");
+
+            testCase.InputFieldId = Guid.NewGuid();
+        }
+    }
+
+    private async Task Run()
+    {
+        Executions.RemoveAll(e => !SelectedTestCases.Select(c => c.TestCaseId).Contains(e.TestCaseId));
+
+        if (SelectedTestCases.Count == 0)
+            await App.Current.MainPage.DisplayAlert("Warning", "No test cases have been selected from the list!", "Ok");
+        else
+        {
+            if (SelectedTestCases.Where(c => c.TestDataIsRequired).Count() != Executions.Where(e => e.TestData != null).Count())
+                await App.Current.MainPage.DisplayAlert("Warning", "One or more selected test cases require test data!", "Ok");
+            else
+            {
+                if (BrowserDriver == 0)
+                    await App.Current.MainPage.DisplayAlert("Warning", "You need to choose a browser!", "Ok");
+                else
+                {
+                    if (TestEnvironment == 0)
+                        await App.Current.MainPage.DisplayAlert("Warning", "You need to choose an environment!", "Ok");
+                    else
+                    {
+                        if (Connectivity.NetworkAccess == NetworkAccess.Internet)
+                        {
+                            LoadingStatus = "Running...";
+                            IsLoading = true;
+
+                            foreach (var testCase in SelectedTestCases)
+                            {
+                                if (!Executions.Select(e => e.TestCaseId).Contains(testCase.TestCaseId))
+                                {
+                                    var execution = new Execution
+                                    {
+                                        ExecutionId = Guid.NewGuid().ToString(),
+                                        TestCaseId = testCase.TestCaseId,
+                                        SuiteExecutionId = SuiteExecutionId,
+                                        UserId = Id,
+                                    };
+
+                                    Executions.Add(execution);
+                                }
+                            }
+
+                            SuiteExecution.SuiteExecutionId = SuiteExecutionId;
+                            SuiteExecution.BusinessProcessId = BusinessProcessId;
+                            SuiteExecution.UserId = Id;
+                            SuiteExecution.ExecutionDate = DateTime.Now;
+
+                            Boolean browserIsInstalled = true;
+
+                            foreach (var execution in Executions)
+                            {
+                                if (browserIsInstalled)
+                                {
+                                    execution.ExecutionDate = DateTime.Now;
+                                    execution.BrowserDriver = BrowserDriver;
+                                    execution.TestEnvironment = TestEnvironment;
+
+                                    Test test = new();
+
+                                    var testCase = SelectedTestCases.FirstOrDefault(c => c.TestCaseId == execution.TestCaseId);
+
+                                    test = await Task.Delay(2000).ContinueWith(task =>
+                                        Evidences.Run(BusinessProcess.TestApplication.NameSpace,
+                                            BusinessProcess.NameSpace,
+                                            testCase.Name,
+                                            execution.TestData,
+                                            execution.BrowserDriver,
+                                            execution.TestEnvironment,
+                                            FileSystem.CacheDirectory
+                                        )
+                                    );
+
+                                    if (test != null)
+                                    {
+                                        execution.ExecutionStatus = test.ExecutionStatus;
+
+                                        if (test.ExecutionStatus == TestLab.Utilities.ExecutionStatus.Fail || test.ExecutionStatus == TestLab.Utilities.ExecutionStatus.Pass)
+                                            execution.TestReport = Compression.Compress(Compression.Minify(File.ReadAllBytes(Path.Combine(test.ReportPath, "index.html"))));
+                                    }
+                                    else
+                                    {
+                                        browserIsInstalled = false;
+
+                                        await App.Current.MainPage.DisplayAlert("Incorrect", "The selected browser is not installed!", "Ok");
+                                    }
+                                }
+                            }
+
+                            if (browserIsInstalled)
+                            {
+                                var result = await suiteExecutionsService.AddSuiteExecutionAsync(SuiteExecution, BusinessProcessId, TestApplicationId, navigationManager);
+
+                                if (result != null)
+                                {
+                                    foreach (var execution in Executions)
+                                        await executionsService.AddExecutionAsync(execution, BusinessProcessId, TestApplicationId, navigationManager, null, false);
+                                }
+                            }
+
+                            await App.Current.MainPage.DisplayAlert("Correct", "The execution of the test case suite has been completed!", "Ok");
+
+                            navigationManager.NavigateTo($"/suiteExecutions/report/execute/{SuiteExecution.SuiteExecutionId}/{BusinessProcessId}/{TestApplicationId}");
+
+                            IsLoading = false;
+                        }
+                        else
+                            await App.Current.MainPage.DisplayAlert("Connection error", "Please check your internet connection and try again!", "Ok");
+                    }
+                }
+            }
+        }
+    }
+
+    private async Task ShowDetails(String id)
+    {
+        if (Connectivity.NetworkAccess == NetworkAccess.Internet)
+        {
+            TestCase = await testCasesService.GetTestCaseAsync(id);
+
+            if (TestCase != null)
+                ShowDetailsModal = true;
+            else
+                await App.Current.MainPage.DisplayAlert("Incorrect", "No test case information found!", "Ok");
+        }
+        else
+            await App.Current.MainPage.DisplayAlert("Connection error", "Please check your internet connection and try again!", "Ok");
+    }
+
+    private void Close()
+    {
+        ShowDetailsModal = false;
+
+        TestCase = new();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Preferences.ContainsKey("id"))
+            Id = Preferences.Get("id", null) as String;
+
+        if (Preferences.ContainsKey("tester"))
+            Tester = Preferences.Get("tester", null) as String;
+
+        if (Connectivity.NetworkAccess == NetworkAccess.Internet)
+        {
+            ExecutionDate = DateTime.Now.ToString();
+
+            BusinessProcess = await businessProcessesService.GetBusinessProcessAsync(BusinessProcessId);
+
+            if (BusinessProcess != null)
+            {
+                TestCases = await testCasesService.GetTestCasesAsync(BusinessProcessId);
+
+                TestCases = TestCases.Where(c => c.Status).ToList();
+            }
+            else
+            {
+                await App.Current.MainPage.DisplayAlert("Incorrect", "Business process information not found!", "Ok");
+
+                navigationManager.NavigateTo($"/testCases/list/{BusinessProcessId}/{TestApplicationId}");
+            }
+        }
+        else
+        {
+            await App.Current.MainPage.DisplayAlert("Connection error", "Please check your internet connection and try again!", "Ok");
+
+            navigationManager.NavigateTo($"/suiteExecutions/execute/{BusinessProcessId}/{TestApplicationId}", true);
+        }
+    }
+}

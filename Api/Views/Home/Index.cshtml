@@ -1,0 +1,198 @@
+﻿@{
+    ViewData["Title"] = "Home";
+}
+
+<div id="carousel" class="carousel slide" data-bs-ride="carousel">
+    <div class="carousel-indicators">
+        <button type="button" data-bs-target="#carousel" data-bs-slide-to="0" class="active" aria-label="Slide 1"></button>
+        <button type="button" data-bs-target="#carousel" data-bs-slide-to="1" aria-label="Slide 2" class="" aria-current="true"></button>
+        <button type="button" data-bs-target="#carousel" data-bs-slide-to="2" aria-label="Slide 3" class=""></button>
+    </div>
+    <div class="carousel-inner">
+        <div class="carousel-item active">
+            <svg class="bd-placeholder-img" width="100%" height="100%" focusable="false">
+                <rect width="100%" height="100%" fill="#777">
+                    <img src="~/img/register.jpg" style="opacity: .8">
+                </rect>
+            </svg>
+            <div class="container">
+                <div class="carousel-caption text-start">
+                    <h1 style="color:#000">Sign up</h1>
+                    <p style="color:#000">Create an account to access the demo of the application.</p>
+                    <p>
+                        <a class="btn btn-confirm" asp-area="Identity" asp-page="/Account/Register">Create account</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="carousel-item">
+            <svg class="bd-placeholder-img" width="100%" height="100%" focusable="false">
+                <rect width="100%" height="100%" fill="#777">
+                    <img src="~/img/application.jpg" style="opacity: .8">
+                </rect>
+            </svg>
+            <div class="container">
+                <div class="carousel-caption">
+                    <h1 style="color:#000">Download the app</h1>
+                    <p style="color:#000">Make sure you have Windows 10 or Windows 11 installed to run the app.</p>
+                    <p>
+                        <a class="btn btn-confirm" asp-action="Download">Download</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="carousel-item">
+            <svg class="bd-placeholder-img" width="100%" height="100%" focusable="false">
+                <rect width="100%" height="100%" fill="#777">
+                    <img src="~/img/github.jpg" style="opacity: .8">
+                </rect>
+            </svg>
+            <div class="container">
+                <div class="carousel-caption text-end">
+                    <h1>Visit our repository</h1>
+                    <p>Access our repository to view and download the source code.</p>
+                    <p>
+                        <a class="btn btn-confirm" href="https://github.com/Frank-296/frankenstein-testlab">Go</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <button class="carousel-control-prev" type="button" data-bs-target="#carousel" data-bs-slide="prev">
+        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+        <span class="visually-hidden">Previous</span>
+    </button>
+    <button class="carousel-control-next" type="button" data-bs-target="#carousel" data-bs-slide="next">
+        <span class="carousel-control-next-icon" aria-hidden="true"></span>
+        <span class="visually-hidden">Next</span>
+    </button>
+</div>
+<div class="container marketing">
+    <div class="row">
+        <div class="col-lg-4">
+            <svg class="bd-placeholder-img rounded-circle" width="140" height="140" focusable="false">
+                <rect width="100%" height="100%" fill="#5fa758" />
+                <image xlink:href="/img/flask.png" width="140" height="140" />
+            </svg>
+            <h2>Single execution</h2>
+            <p>You can run single test cases.</p>
+            <p>
+                <div class="btn-group mr-2">
+                    <button class="btn btn-grape" data-bs-toggle="modal" data-bs-target="#testCaseSearchModal">See examples &raquo;</button>
+                    <button class="btn btn-rain" onclick="ShowVideo('execution of single test case.mp4')">See demo &raquo;</button>
+                </div>
+            </p>
+        </div>
+        <div class="col-lg-4">
+            <svg class="bd-placeholder-img rounded-circle" width="140" height="140" focusable="false">
+                <rect width="100%" height="100%" fill="#5fa758" />
+                <image xlink:href="/img/clipboard.png" width="140" height="140" />
+            </svg>
+            <h2>Execution of test suite</h2>
+            <p>You can run a whole test suite.</p>
+            <p>
+                <div class="btn-group mr-2">
+                    <button class="btn btn-grape" data-bs-toggle="modal" data-bs-target="#testSuiteSearchModal">See examples &raquo;</button>
+                    <button class="btn btn-rain" onclick="ShowVideo('execution of test case suite.mp4')">See demo &raquo;</button>
+                </div>
+            </p>
+        </div>
+        <div class="col-lg-4">
+            <svg class="bd-placeholder-img rounded-circle" width="140" height="140" focusable="false">
+                <rect width="100%" height="100%" fill="#5fa758" />
+                <image xlink:href="/img/report.png" width="140" height="140" />
+            </svg>
+            <h2>Reports</h2>
+            <p>You can generate execution reports.</p>
+            <p>
+                <div class="btn-group mr-2">
+                    <a class="btn btn-grape" asp-controller="Reports" asp-action="Index">See examples &raquo;</a>
+                    <button class="btn btn-rain" onclick="ShowVideo('create a test execution report.mp4')">See demo &raquo;</button>
+                </div>
+            </p>
+        </div>
+    </div>
+    <hr class="featurette-divider">
+    <div class="row featurette">
+        <div class="col-md-7">
+            <h2 class="featurette-heading">About this app</h2>
+            <p class="lead">Frankenstein Test Lab is an automated test case manager and executor, it allows you to run single test cases or run them in test suite. You can also generate execution reports in Excel.</p>
+            <p class="lead">This app has been written entirely in .NET MAUI Blazor, using different open source libraries to execute automated test cases.</p>
+            <p>
+                <button class="btn btn-grass" data-bs-toggle="modal" data-bs-target="#learnMoreModal">Learn more &raquo;</button>
+            </p>
+        </div>
+        <div class="col-md-5">
+            <svg class="bd-placeholder-img bd-placeholder-img-lg featurette-image img-fluid mx-auto" width="500" height="500" focusable="false">
+                <rect width="100%" height="100%" fill="#f3f3f3" />
+                <image xlink:href="/img/quality.jpg" width="500" height="500" />
+            </svg>
+        </div>
+    </div>
+    <hr class="featurette-divider">
+    <div class="row featurette">
+        <div class="col-md-7 order-md-2">
+            <h2 class="featurette-heading">Contribution to this app</h2>
+            <p class="lead">You can share your ideas with us to improve this application and expand more so that in the future it can be implemented in different companies, popularizing the creation of automated test cases with C# as a programming language.</p>
+        </div>
+        <div class="col-md-5 order-md-1">
+            <svg class="bd-placeholder-img bd-placeholder-img-lg featurette-image img-fluid mx-auto" width="500" height="500" focusable="false">
+                <rect width="100%" height="100%" fill="#f3f3f3" />
+                <image xlink:href="/img/development.jpg" width="500" height="500" />
+            </svg>
+        </div>
+    </div>
+    <hr class="featurette-divider">
+</div>
+
+<div class="modal fade" id="testCaseSearchModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+        @await Html.PartialAsync("../Executions/_Search")
+    </div>
+</div>
+
+<div class="modal fade" id="testSuiteSearchModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+        @await Html.PartialAsync("../SuiteExecutions/_Search")
+    </div>
+</div>
+
+<div class="modal fade" id="showVideoModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-fullscreen" role="document">
+        @await Html.PartialAsync("_ShowVideo")
+    </div>
+</div>
+
+<div class="modal fade" id="learnMoreModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-fullscreen" role="document">
+        @await Html.PartialAsync("_LearnMore")
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            if ('@TempData["alert"]' == "successSignUp") {
+                customSwal.fire("Correct", "Your registration was successful, now you can download the app and log in!", "success");
+            }
+        });
+
+        var customSwal = Swal.mixin({
+            customClass: {
+                confirmButton: 'btn btn-confirm',
+                cancelButton: 'btn btn-mist'
+            },
+            buttonsStyling: false,
+            showCloseButton: true,
+            confirmButtonText: '<i class="fa fa-check"></i> OK',
+        });
+
+        function ShowVideo(fileName) {
+            document.getElementById('videoFileName').innerText = ' | ' + fileName;
+            $('#vjs_video_3_html5_api').attr('src', '../vid/' + fileName);
+            $('#showVideoModal').modal('show');
+        }
+    </script>
+    <script src="~/js/executions/search.min.js" asp-append-version="true"></script>
+    <script src="~/js/suiteExecutions/search.min.js" asp-append-version="true"></script>
+}

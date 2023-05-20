@@ -1,0 +1,185 @@
+﻿@model Execution
+@{
+    ViewData["Title"] = "Details";
+}
+
+<div class="modal-content">
+    <div class="modal-header bg-blueberry">
+        <h5 class="modal-title"><i class="fa fa-circle-info"></i> @ViewBag.Title</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+    </div>
+    <div class="modal-body">
+        <div class="card mb-3">
+            <div class="card-body" id="testReportDiv">
+                <iframe id="testReportFrame" frameborder="0" allowfullscreen style="position:relative; height:75vh; width:100%"></iframe>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-12 col-lg-12 col-xl-12 mb-3">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="d-flex justify-content-between">
+                            <h5 class="h5 mb-2 mt-2"><i class="fa fa-clipboard-check"></i> Execution information</h5>
+                            <div class="btn-toolbar mb-2 mb-md-0">
+                                <div class="btn-group btn-sm" id="downloadReport"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-sm table-bordered table-striped" cellspacing="0" width="100%">
+                            <tbody>
+                                <tr>
+                                    <th>@Html.DisplayNameFor(execution => execution.TestCase.BusinessProcess.TestApplication.Name):</th>
+                                    <td><span id="testApplicationName"></span></td>
+                                </tr>
+                                <tr>
+                                    <th>@Html.DisplayNameFor(execution => execution.TestCase.BusinessProcess.TestApplication.Description):</th>
+                                    <td><span id="testApplicationDescription"></span></td>
+                                </tr>
+                                <tr>
+                                    <th>@Html.DisplayNameFor(execution => execution.TestCase.BusinessProcess.Name):</th>
+                                    <td><span id="businessProcessName"></span></td>
+                                </tr>
+                                <tr>
+                                    <th>@Html.DisplayNameFor(execution => execution.TestCase.BusinessProcess.Description):</th>
+                                    <td><span id="businessProcessDescription"></span></td>
+                                </tr>
+                                <tr>
+                                    <th>@Html.DisplayNameFor(execution => execution.TestCase.Name):</th>
+                                    <td><span id="testCaseName"></span></td>
+                                </tr>
+                                <tr>
+                                    <th>@Html.DisplayNameFor(execution => execution.TestCase.Description):</th>
+                                    <td><span id="testCaseDescription"></span></td>
+                                </tr>
+                                <tr>
+                                    <th>@Html.DisplayNameFor(execution => execution.TestCase.TestType):</th>
+                                    <td><span id="testCaseTestType"></span></td>
+                                </tr>
+                                <tr>
+                                    <th>@Html.DisplayNameFor(execution => execution.TestCase.Preconditions):</th>
+                                    <td><span id="testCasePreconditions"></span></td>
+                                </tr>
+                                <tr>
+                                    <th>@Html.DisplayNameFor(execution => execution.ExecutionDate):</th>
+                                    <td><span id="executionDate"></span></td>
+                                </tr>
+                                <tr>
+                                    <th>@Html.DisplayNameFor(execution => execution.TestEnvironment):</th>
+                                    <td><span id="executionTestEnvironment"></span></td>
+                                </tr>
+                                <tr>
+                                    <th>@Html.DisplayNameFor(execution => execution.BrowserDriver):</th>
+                                    <td><span id="executionBrowserDriver"></span></td>
+                                </tr>
+                                <tr>
+                                    <th>@Html.DisplayNameFor(execution => execution.ExecutionStatus):</th>
+                                    <td id="executionStatusTd"><span id="executionStatus"></span></td>
+                                </tr>
+                                <tr>
+                                    <th>@Html.DisplayNameFor(execution => execution.Remarks):</th>
+                                    <td><span id="executionRemarks"></span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-12 col-lg-12 col-xl-12 mb-3" id="testDataDiv" style="display:none">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="d-flex justify-content-between">
+                            <h5 class="h5 mb-2 mt-2"><i class="fa fa-file-excel"></i> Test data</h5>
+                            <div class="btn-toolbar mb-2 mb-md-0">
+                                <div class="btn-group btn-sm" id="downloadTestData"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body" id="testDataCard"></div>
+                </div>
+            </div>
+            <div class="col-md-12 col-lg-12 col-xl-12 mb-3" id="defectDiv" style="display:none">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="d-flex justify-content-between">
+                            <h5 class="h5 mb-2 mt-2"><i class="fa fa-bug"></i> Defect information</h5>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-sm table-bordered table-striped" cellspacing="0" width="100%">
+                            <tbody>
+                                <tr>
+                                    <th>Assignee:</th>
+                                    <td><span id="assignee"></span></td>
+                                </tr>
+                                <tr>
+                                    <th>@Html.DisplayNameFor(execution => execution.Defect.User.Email):</th>
+                                    <td><span id="assigneeEmail"></span></td>
+                                </tr>
+                                <tr>
+                                    <th>@Html.DisplayNameFor(execution => execution.Defect.User.PhoneNumber):</th>
+                                    <td><span id="assigneePhoneNumber"></span></td>
+                                </tr>
+                                <tr>
+                                    <th>@Html.DisplayNameFor(execution => execution.Defect.Summary):</th>
+                                    <td><span id="summary"></span></td>
+                                </tr>
+                                <tr>
+                                    <th>@Html.DisplayNameFor(execution => execution.Defect.Description):</th>
+                                    <td><span id="defectDescription"></span></td>
+                                </tr>
+                                <tr>
+                                    <th>@Html.DisplayNameFor(execution => execution.Defect.DefectPriority):</th>
+                                    <td><span id="defectPriority"></span></td>
+                                </tr>
+                                <tr>
+                                    <th>@Html.DisplayNameFor(execution => execution.Defect.DefectSeverity):</th>
+                                    <td><span id="defectSeverity"></span></td>
+                                </tr>
+                                <tr>
+                                    <th>@Html.DisplayNameFor(execution => execution.Defect.DefectStatus):</th>
+                                    <td id="defectStatusTd"><span id="defectStatus"></span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-12 col-lg-12 col-xl-12">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="d-flex justify-content-between">
+                            <h5 class="h5 mb-2 mt-2"><i class="fa fa-user"></i> Executor information</h5>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-sm table-bordered table-striped" cellspacing="0" width="100%">
+                            <tbody>
+                                <tr>
+                                    <th>@Html.DisplayNameFor(execution => execution.User.DisplayName):</th>
+                                    <td><span id="executor"></span></td>
+                                </tr>
+                                <tr>
+                                    <th>@Html.DisplayNameFor(execution => execution.User.Company.Name):</th>
+                                    <td><span id="company"></span></td>
+                                </tr>
+                                <tr>
+                                    <th>Role:</th>
+                                    <td><span id="role"></span></td>
+                                </tr>
+                                <tr>
+                                    <th>@Html.DisplayNameFor(execution => execution.User.Email):</th>
+                                    <td><span id="email"></span></td>
+                                </tr>
+                                <tr>
+                                    <th>@Html.DisplayNameFor(execution => execution.User.PhoneNumber):</th>
+                                    <td><span id="phoneNumber"></span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

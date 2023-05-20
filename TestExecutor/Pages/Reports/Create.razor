@@ -1,0 +1,228 @@
+﻿@page "/reports/create"
+@inject IReportsStore<Execution> reportsService
+@inject NavigationManager navigationManager
+
+<div class="p-4">
+    <div class="card">
+        <div class="card-header bg-blueberry">
+            <div class="d-flex justify-content-between">
+                <h5 class="h5 mb-2 mt-2"><span class="oi oi-pie-chart" aria-hidden="true"></span> Reports</h5>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <section class="col-md-8 mb-3">
+                    <div class="card">
+                        <div class="card-body">
+                            <RadzenChart @ref="Chart" Style="width:500px; height:400px">
+                                <RadzenDonutSeries Fills=@(new [] { "#5fa758", "#d74b3d", "#ffe351", "#72a5d9" }) Strokes=@(new [] { "#5fa758", "#d74b3d", "#ffe351", "#72a5d9" }) Data="@Data" Title="@NewReport.Title" CategoryProperty="Status" ValueProperty="Executions">
+                                    <ChildContent>
+                                        <RadzenSeriesDataLabels Visible="true" />
+                                    </ChildContent>
+                                    <TitleTemplate>
+                                        <div class="rz-donut-content">
+                                            <div>@NewReport.Title</div>
+                                        </div>
+                                    </TitleTemplate>
+                                </RadzenDonutSeries>
+                            </RadzenChart>
+                        </div>
+                    </div>
+                </section>
+                <section class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="d-flex justify-content-between">
+                                <h5 class="h5 mb-2 mt-2"><span class="oi oi-plus" aria-hidden="true"></span> New report</h5>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <EditForm Model="NewReport">
+                                <div class="form-floating mb-3">
+                                    <InputText class="form-control" placeholder="Report title" @bind-Value="NewReport.Title"></InputText>
+                                    <label>Report title</label>
+                                </div>
+                                <div class="form-floating mb-3">
+                                    <InputDate class="form-control" placeholder="Execution start date" @bind-Value="NewReport.StartDate" @bind-Value:format="dd/MM/yyyy"></InputDate>
+                                    <label>Execution start date</label>
+                                </div>
+                                <div class="form-floating">
+                                    <InputDate class="form-control" placeholder="Execution end date" @bind-Value="NewReport.EndDate" @bind-Value:format="dd/MM/yyyy"></InputDate>
+                                    <label>Execution end date</label>
+                                </div>
+                            </EditForm>
+                        </div>
+                        <div class="card-footer">
+                            <div class="btn-group btn-sm w-100">
+                                <button class="btn btn-confirm" @onclick="Generate"><span class="oi oi-check" aria-hidden="true"></span> Generate</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+        @if (ShowDownloadButton)
+        {
+            <div class="card-footer">
+                <div class="btn-group btn-sm w-100">
+                    <button class="btn btn-kiwi" @onclick="Download"><span class="oi oi-data-transfer-download" aria-hidden="true"></span> Download report</button>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@if (IsLoading)
+{
+    <div class="modal fade show" style="display:block" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-sm modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header bg-blueberry">
+                    <h5 class="modal-title"><span class="oi oi-clock" aria-hidden="true"></span> Wait...</h5>
+                </div>
+                <div class="modal-body" style="min-height:250px">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+@code {
+    private RadzenChart Chart;
+    private static IList<Execution> Executions = new List<Execution>();
+    private GenerateReportViewModel NewReport = new();
+    private Boolean IsLoading = false;
+    private Boolean ShowDownloadButton = false;
+    private String Id;
+
+    private async Task Generate()
+    {
+        if (String.IsNullOrEmpty(NewReport.Title) && String.IsNullOrWhiteSpace(NewReport.Title) ||
+            String.IsNullOrEmpty(NewReport.StartDate.ToString()) && String.IsNullOrWhiteSpace(NewReport.StartDate.ToString()) ||
+            String.IsNullOrEmpty(NewReport.EndDate.ToString()) && String.IsNullOrWhiteSpace(NewReport.EndDate.ToString()))
+            await App.Current.MainPage.DisplayAlert("Warning", "One or more fields are empty!", "Ok");
+        else
+        {
+            if (Connectivity.NetworkAccess == NetworkAccess.Internet)
+            {
+                IsLoading = true;
+
+                Executions = await reportsService.GenerateReportAsync((DateTime)NewReport.StartDate, (DateTime)NewReport.EndDate, Id);
+
+                Data = new List<DataItem>
+                {
+                    new DataItem { Status = "Pass", Executions = Executions.Where(e => e.ExecutionStatus == ExecutionStatus.Pass).Count() },
+                    new DataItem { Status = "Fail", Executions = Executions.Where(e => e.ExecutionStatus == ExecutionStatus.Fail).Count() },
+                    new DataItem { Status = "Stop", Executions = Executions.Where(e => e.ExecutionStatus == ExecutionStatus.Stop).Count() },
+                    new DataItem { Status = "Not run", Executions = Executions.Where(e => e.ExecutionStatus == ExecutionStatus.NotRun).Count() }
+                };
+
+                await Chart.Reload();
+
+                IsLoading = false;
+
+                if (Executions.Count() == 0)
+                    ShowDownloadButton = false;
+                else
+                    ShowDownloadButton = true;
+            }
+            else
+                await App.Current.MainPage.DisplayAlert("Connection error", "Please check your internet connection and try again!", "Ok");
+        }
+    }
+
+    private async Task Download()
+    {
+        IsLoading = true;
+
+        try
+        {
+            var dataTable = new DataTable(NewReport.Title);
+
+            dataTable.Columns.AddRange(new DataColumn[13]
+            {
+                new DataColumn("#"),
+                new DataColumn("Application"),
+                new DataColumn("Business process"),
+                new DataColumn("Test type"),
+                new DataColumn("Test case"),
+                new DataColumn("Description"),
+                new DataColumn("Date and time of execution"),
+                new DataColumn("Environment"),
+                new DataColumn("Browser"),
+                new DataColumn("Executor"),
+                new DataColumn("Role"),
+                new DataColumn("Status"),
+                new DataColumn("Comments")
+            });
+
+            foreach (var execution in Executions)
+                dataTable.Rows.Add((Executions.IndexOf(execution) + 1),
+                execution.TestCase.BusinessProcess.TestApplication.Name,
+                execution.TestCase.BusinessProcess.Name,
+                execution.TestCase.TestType,
+                execution.TestCase.Name,
+                execution.TestCase.Description,
+                execution.ExecutionDate,
+                execution.TestEnvironment,
+                execution.BrowserDriver,
+                execution.User.DisplayName,
+                execution.User.UserRoles.FirstOrDefault().Role.Name,
+                execution.ExecutionStatus,
+                execution.Remarks);
+
+            var workBook = new XLWorkbook();
+            var workSheet = workBook.Worksheets.Add(dataTable);
+
+            workSheet.RangeUsed().Style.Font.FontName = "Cambria";
+            workSheet.ColumnsUsed().AdjustToContents();
+
+            var memoryStream = new MemoryStream();
+
+            workBook.SaveAs(memoryStream);
+
+            await FileSaver.SaveAsync($"{NewReport.Title}.xlsx", memoryStream, default);
+        }
+        catch (Exception)
+        {
+            await App.Current.MainPage.DisplayAlert("Incorrect", "An unexpected error occurred!", "Ok");
+        }
+
+        await Task.Delay(1000);
+
+        IsLoading = false;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Preferences.ContainsKey("id"))
+            Id = Preferences.Get("id", null) as String;
+
+        if (!(Connectivity.NetworkAccess == NetworkAccess.Internet))
+        {
+            await App.Current.MainPage.DisplayAlert("Connection error", "Please check your internet connection and try again!", "Ok");
+
+            navigationManager.NavigateTo($"/reports/create", true);
+        }
+    }
+
+    private List<DataItem> Data;
+
+    public class DataItem
+    {
+        public String Status { get; set; }
+
+        public Double Executions { get; set; }
+    }
+
+    public class GenerateReportViewModel
+    {
+        public String Title { get; set; }
+
+        public DateTime? StartDate { get; set; } = null;
+
+        public DateTime? EndDate { get; set; } = null;
+    }
+}

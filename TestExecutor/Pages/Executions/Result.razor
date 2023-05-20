@@ -1,0 +1,829 @@
+﻿@page "/executions/result/{from}/{executionId}/{testCaseId}/{businessProcessId}/{testApplicationId}"
+@inject IExecutionsStore<Execution> executionsService
+@inject IDefectsStore<Defect> defectsService
+@inject NavigationManager navigationManager
+
+<div>
+	<div class="p-4">
+		<div class="row">
+			<div class="col-md-12 col-lg-12 col-xl-12 mb-4">
+				<div class="card">
+					<div class="card-header bg-blueberry">
+						<div class="d-flex justify-content-between">
+							<h5 class="h5 mb-2 mt-2"><span class="oi oi-clipboard" aria-hidden="true"></span> Execution result (@Execution.ExecutionStatus)</h5>
+							<div class="btn-toolbar mb-2 mb-md-0">
+								<div class="btn-group btn-sm">
+									@if (Execution.TestReport != null)
+									{
+										<button class="btn btn-kiwi" @onclick="() => Download(true)"><span class="oi oi-data-transfer-download"></span> Download report</button>
+									}
+									else
+									{
+										<button class="btn btn-kiwi" disabled><span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Loading...</button>
+									}
+									@if (From == "defects")
+									{
+										<a class="btn btn-storm" href="/defects/list"><span class="oi oi-media-skip-backward"></span> Go back</a>
+									}
+									else
+									{
+										if (From == "executions")
+										{
+											<a class="btn btn-storm" href="/executions/list/@TestCaseId/@BusinessProcessId/@TestApplicationId"><span class="oi oi-media-skip-backward"></span> Go back</a>
+										}
+										else
+										{
+											if (From == "suiteExecutions")
+											{
+												<a class="btn btn-storm" href="/executions/list/@TestCaseId/@BusinessProcessId/@TestApplicationId"><span class="oi oi-media-skip-backward"></span> Go back</a>
+											}
+											else
+											{
+												if (From == "single")
+												{
+													<a class="btn btn-storm" href="/home/executions/list"><span class="oi oi-media-skip-backward"></span> Go back</a>
+												}
+												else
+												{
+													<a class="btn btn-storm" href="/executions/list/@TestCaseId/@BusinessProcessId/@TestApplicationId"><span class="oi oi-media-skip-backward"></span> Go back</a>
+												}
+											}
+										}
+									}
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="card-body @StatusBg">
+						@if (Execution.TestReport != null)
+						{
+							<iframe srcdoc="@HtmlReportString" frameborder="0" allowfullscreen style="position:relative; height:@ReportHeight; width:100%"></iframe>
+						}
+						else
+						{
+							<div class="modal-body" style="min-height:250px">
+								<div class="spinner"></div>
+							</div>
+						}
+					</div>
+				</div>
+			</div>
+			<div class="col-md-12 col-lg-12 col-xl-12 mb-4">
+				<div class="card">
+					<div class="card-header bg-blueberry">
+						<div class="d-flex justify-content-between">
+							<h5 class="h5 mb-2 mt-2"><span class="oi oi-list-rich" aria-hidden="true"></span> Execution information</h5>
+							<div class="btn-toolbar mb-2 mb-md-0">
+								<div class="btn-group btn-sm">
+									@if (Execution.ExecutionStatus != ExecutionStatus.Pass)
+									{
+										@if (ActionsButton)
+										{
+											if (!DefectIsReported)
+											{
+												<button class="btn btn-confirm" @onclick="() => Run(false)"><span class="oi oi-play-circle" aria-hidden="true"></span> Run again</button>
+												<a class="btn btn-mammee" href="/defects/create/@From/@ExecutionId/@TestCaseId/@BusinessProcessId/@TestApplicationId"><span class="oi oi-bug"></span> Report defect</a>
+											}
+											else
+											{
+												if (Execution.Defect.DefectStatus == DefectStatus.New || Execution.Defect.DefectStatus == DefectStatus.Assigned || Execution.Defect.DefectStatus == DefectStatus.Open)
+												{
+													<button class="btn btn-confirm" disabled><span class="oi oi-play-circle" aria-hidden="true"></span> Run again</button>
+													<button class="btn btn-sky" @onclick="() => ShowDefectDetailsModal = true"><span class="oi oi-info"></span> Defect details</button>
+												}
+												else
+												{
+													if (Execution.Defect.DefectStatus == DefectStatus.Duplicated || Execution.Defect.DefectStatus == DefectStatus.Rejected || Execution.Defect.DefectStatus == DefectStatus.Deferred || Execution.Defect.DefectStatus == DefectStatus.NotABug)
+													{
+														<a class="btn btn-confirm" href="/executions/execute/@From/@Execution.TestCaseId/@BusinessProcessId/@TestApplicationId"><span class="oi oi-play-circle" aria-hidden="true"></span> New run</a>
+														<button class="btn btn-sky" @onclick="() => ShowDefectDetailsModal = true"><span class="oi oi-info"></span> Defect details</button>
+													}
+													else
+													{
+														if (Execution.Defect.DefectStatus == DefectStatus.Fixed && Execution.ExecutionStatus == ExecutionStatus.NotRun)
+														{
+															if (Execution.SuiteExecutionId == null)
+															{
+																<button class="btn btn-confirm" @onclick="() => Run(true)"><span class="oi oi-play-circle" aria-hidden="true"></span> Run (retest)</button>
+																<button class="btn btn-sky" @onclick="() => ShowDefectDetailsModal = true"><span class="oi oi-info"></span> Defect details</button>
+															}
+															else
+															{
+																<a class="btn btn-confirm" href="/executions/execute/@From/@Execution.TestCaseId/@BusinessProcessId/@TestApplicationId"><span class="oi oi-play-circle" aria-hidden="true"></span> New run</a>
+																<button class="btn btn-sky" @onclick="() => ShowDefectDetailsModal = true"><span class="oi oi-info"></span> Defect details</button>
+															}
+														}
+														else
+														{
+															if (Execution.Defect.DefectStatus == DefectStatus.Retested && Execution.ExecutionStatus == ExecutionStatus.Fail)
+															{
+																<button class="btn btn-confirm" disabled><span class="oi oi-play-circle" aria-hidden="true"></span> Run again</button>
+																<button class="btn btn-sky" @onclick="() => ShowDefectDetailsModal = true"><span class="oi oi-info"></span> Defect details</button>
+															}
+															else
+															{
+																<button class="btn btn-confirm" disabled><span class="oi oi-play-circle" aria-hidden="true"></span> Run again</button>
+																<button class="btn btn-sky" disabled><span class="oi oi-info"></span> Defect details</button>
+															}
+														}
+													}
+												}
+											}
+										}
+										else
+										{
+											<button class="btn btn-confirm" disabled><span class="oi oi-play-circle" aria-hidden="true"></span> Run again</button>
+											if (!DefectIsReported)
+											{
+												<button class="btn btn-mammee" disabled><span class="oi oi-bug"></span> Report defect</button>
+											}
+											else
+											{
+												<button class="btn btn-sky" disabled><span class="oi oi-info"></span> Defect details</button>
+											}
+										}
+									}
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="card-body">
+						<table class="table table-sm table-bordered table-striped" cellspacing="0" width="100%">
+							<tbody>
+								<tr>
+									<th>Test application name:</th>
+									<td>@Execution.TestCase.BusinessProcess.TestApplication.Name</td>
+								</tr>
+								<tr>
+									<th>Test application description:</th>
+									<td>@Execution.TestCase.BusinessProcess.TestApplication.Description</td>
+								</tr>
+								<tr>
+									<th>Business process name:</th>
+									<td>@Execution.TestCase.BusinessProcess.Name</td>
+								</tr>
+								<tr>
+									<th>Business process description:</th>
+									<td>@Execution.TestCase.BusinessProcess.Description</td>
+								</tr>
+								<tr>
+									<th>Test case name:</th>
+									<td>@Execution.TestCase.Name</td>
+								</tr>
+								<tr>
+									<th>Test case description:</th>
+									<td>@Execution.TestCase.Description</td>
+								</tr>
+								<tr>
+									<th>Test type:</th>
+									<td>@Execution.TestCase.TestType</td>
+								</tr>
+								<tr>
+									<th>Preconditions:</th>
+									<td>@Execution.TestCase.Preconditions</td>
+								</tr>
+								<tr>
+									<th>Execution date:</th>
+									<td>@Execution.ExecutionDate</td>
+								</tr>
+								<tr>
+									<th>Environment:</th>
+									<td>@Execution.TestEnvironment</td>
+								</tr>
+								<tr>
+									<th>Browser:</th>
+									<td>@Execution.BrowserDriver</td>
+								</tr>
+								<tr>
+									<th>Status:</th>
+									<td class="@StatusBg">@Execution.ExecutionStatus</td>
+								</tr>
+								<tr>
+									<th>Remarks:</th>
+									<td>@Execution.Remarks</td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+			@if (Execution.TestData != null)
+			{
+				<div class="col-md-12 col-lg-12 col-xl-12 mb-4">
+					<div class="card">
+						<div class="card-header bg-blueberry">
+							<div class="d-flex justify-content-between">
+								<h5 class="h5 mb-2 mt-2"><span class="oi oi-spreadsheet" aria-hidden="true"></span> Test data (Data extracted from excel)</h5>
+								<div class="btn-toolbar mb-2 mb-md-0">
+									<div class="btn-group btn-sm">
+										<button class="btn btn-kiwi" @onclick="() => Download(false)"><span class="oi oi-data-transfer-download"></span> Download test data</button>
+									</div>
+								</div>
+							</div>
+						</div>
+						<div class="card-body">
+							@if (CurrentDataPool.Rows.Count == 0)
+							{
+								<p><em>@CurrentDataPoolStatus</em></p>
+							}
+							else
+							{
+								<table id="table" class="table table-sm table-bordered table-striped" cellspacing="0" width="100%">
+									<thead>
+										<tr>
+											@foreach (DataColumn column in CurrentDataPool.Columns)
+											{
+												<th>@column.ColumnName</th>
+											}
+										</tr>
+									</thead>
+									<tbody>
+										@foreach (DataRow row in CurrentDataPool.Rows)
+										{
+											<tr>
+												@foreach (DataColumn column in CurrentDataPool.Columns)
+												{
+													<td>@row[column.ColumnName]</td>
+												}
+											</tr>
+										}
+									</tbody>
+								</table>
+							}
+						</div>
+					</div>
+				</div>
+			}
+			<div class="col-md-12 col-lg-12 col-xl-12">
+				<div class="card">
+					<div class="card-header bg-blueberry">
+						<div class="d-flex justify-content-between">
+							<h5 class="h5 mb-2 mt-2"><span class="oi oi-person" aria-hidden="true"></span> Executor information</h5>
+						</div>
+					</div>
+					<div class="card-body">
+						<table class="table table-sm table-bordered table-striped" cellspacing="0" width="100%">
+							<tbody>
+								<tr>
+									<th>Executor:</th>
+									<td>@Execution.User.DisplayName</td>
+								</tr>
+								<tr>
+									<th>Company:</th>
+									<td>@Execution.User.Company.Name</td>
+								</tr>
+								<tr>
+									<th>Role:</th>
+									<td>@Execution.User.UserRoles.FirstOrDefault().Role.Name</td>
+								</tr>
+								<tr>
+									<th>Email:</th>
+									<td>@Execution.User.Email</td>
+								</tr>
+								<tr>
+									<th>Phone number:</th>
+									<td>@Execution.User.PhoneNumber</td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+@if (ShowDefectDetailsModal)
+{
+	<div class="modal fade show" style="display:block" tabindex="-1">
+		<div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+			<div class="modal-content">
+				<div class="modal-header bg-blueberry">
+					@if (IsRetest)
+					{
+						<h5 class="modal-title"><span class="oi oi-pencil" aria-hidden="true"></span> Edit defect</h5>
+					}
+					else
+					{
+						<h5 class="modal-title"><span class="oi oi-info" aria-hidden="true"></span> Defect details</h5>
+						<button type="button" class="btn-close btn-close-white" @onclick="() => ShowDefectDetailsModal = false"></button>
+					}
+				</div>
+				<div class="modal-body">
+					<EditForm Model="Execution">
+						<div class="form-floating mb-3">
+							<InputText class="form-control" placeholder="Executor" @bind-Value="Tester" disabled></InputText>
+							<label>Executor</label>
+						</div>
+						<div class="form-floating mb-3">
+							<InputText class="form-control" placeholder="Date and time of execution" @bind-Value="ExecutionDate" disabled></InputText>
+							<label>Date and time of execution</label>
+						</div>
+						<div class="form-floating mb-3">
+							<InputText class="form-control" placeholder="Test application" @bind-Value="Execution.TestCase.BusinessProcess.TestApplication.Name" disabled></InputText>
+							<label>Test application</label>
+						</div>
+						<div class="form-floating mb-3">
+							<InputText class="form-control" placeholder="Business process" @bind-Value="Execution.TestCase.BusinessProcess.Name" disabled></InputText>
+							<label>Business process</label>
+						</div>
+						<div class="form-floating mb-3">
+							<InputText class="form-control" placeholder="Test case" @bind-Value="Execution.TestCase.Name" disabled></InputText>
+							<label>Test case</label>
+						</div>
+						@if (IsRetest)
+						{
+							<div class="form-floating mb-3">
+								<InputSelect class="form-select" placeholder="Defect priority" @bind-Value="Execution.Defect.DefectPriority">
+									<option value="0" disabled selected>Select defect priority</option>
+									@foreach (var defectPriority in Enum.GetValues(typeof(DefectPriority)))
+									{
+										<option value="@defectPriority">@defectPriority</option>
+									}
+								</InputSelect>
+								<label>Defect priority</label>
+							</div>
+							<div class="form-floating mb-3">
+								<InputSelect class="form-select" placeholder="Defect severity" @bind-Value="Execution.Defect.DefectSeverity">
+									<option value="0" disabled selected>Select defect severity</option>
+									@foreach (var defectSeverity in Enum.GetValues(typeof(DefectSeverity)))
+									{
+										<option value="@defectSeverity">@defectSeverity</option>
+									}
+								</InputSelect>
+								<label>Defect severity</label>
+							</div>
+							<div class="form-floating mb-3">
+								<InputSelect class="form-select" placeholder="Defect status" @bind-Value="Execution.Defect.DefectStatus" disabled>
+									<option value="0" disabled selected>Select defect status</option>
+									@foreach (var defectStatus in Enum.GetValues(typeof(DefectStatus)))
+									{
+										<option value="@defectStatus">@defectStatus</option>
+									}
+								</InputSelect>
+								<label>Defect status</label>
+							</div>
+						}
+						else
+						{
+							<div class="form-floating mb-3">
+								<InputSelect class="form-select" placeholder="Defect priority" @bind-Value="Execution.Defect.DefectPriority" disabled>
+									<option value="0" disabled selected>Select defect priority</option>
+									@foreach (var defectPriority in Enum.GetValues(typeof(DefectPriority)))
+									{
+										<option value="@defectPriority">@defectPriority</option>
+									}
+								</InputSelect>
+								<label>Defect priority</label>
+							</div>
+							<div class="form-floating mb-3">
+								<InputSelect class="form-select" placeholder="Defect severity" @bind-Value="Execution.Defect.DefectSeverity" disabled>
+									<option value="0" disabled selected>Select defect severity</option>
+									@foreach (var defectSeverity in Enum.GetValues(typeof(DefectSeverity)))
+									{
+										<option value="@defectSeverity">@defectSeverity</option>
+									}
+								</InputSelect>
+								<label>Defect severity</label>
+							</div>
+							<div class="form-floating mb-3">
+								<InputSelect class="form-select" placeholder="Defect status" @bind-Value="Execution.Defect.DefectStatus" disabled>
+									<option value="0" disabled selected>Select defect status</option>
+									@foreach (var defectStatus in Enum.GetValues(typeof(DefectStatus)))
+									{
+										<option value="@defectStatus">@defectStatus</option>
+									}
+								</InputSelect>
+								<label>Defect status</label>
+							</div>
+						}
+						<div class="form-floating mb-3">
+							<InputText class="form-control" placeholder="Assignee" @bind-Value="Assignee" disabled></InputText>
+							<label>Assignee</label>
+						</div>
+						@if (IsRetest)
+						{
+							<div class="form-floating mb-3">
+								<InputText class="form-control" placeholder="Summary" @bind-Value="Execution.Defect.Summary"></InputText>
+								<label>Summary</label>
+							</div>
+							<div class="form-floating">
+								<InputTextArea class="form-control" placeholder="Description (Steps to replicate bug)" style="height:300px" @bind-Value="Execution.Defect.Description"></InputTextArea>
+								<label>Description (Steps to replicate bug)</label>
+							</div>
+						}
+						else
+						{
+							<div class="form-floating mb-3">
+								<InputText class="form-control" placeholder="Summary" @bind-Value="Execution.Defect.Summary" disabled></InputText>
+								<label>Summary</label>
+							</div>
+							<div class="form-floating">
+								<InputTextArea class="form-control" placeholder="Description (Steps to replicate bug)" style="height:300px" @bind-Value="Execution.Defect.Description" disabled></InputTextArea>
+								<label>Description (Steps to replicate bug)</label>
+							</div>
+						}
+					</EditForm>
+				</div>
+				@if (IsRetest)
+				{
+					<div class="modal-footer bg-light">
+						<div class="btn-group btn-sm w-100">
+							<button class="btn btn-confirm" @onclick="Save"><span class="oi oi-check" aria-hidden="true"></span> Accept</button>
+						</div>
+					</div>
+				}
+			</div>
+		</div>
+	</div>
+	<div class="modal-backdrop fade show"></div>
+}
+
+@if (IsLoading)
+{
+	<div class="modal fade show" style="display:block" tabindex="-1">
+		<div class="modal-dialog modal-dialog-centered modal-sm modal-dialog-scrollable">
+			<div class="modal-content">
+				<div class="modal-header bg-blueberry">
+					<h5 class="modal-title"><span class="oi oi-clock" aria-hidden="true"></span> @Status</h5>
+				</div>
+				<div class="modal-body" style="min-height:250px">
+					<div class="spinner"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="modal-backdrop fade show"></div>
+}
+
+@code {
+	[Parameter]
+	public String From { get; set; }
+
+	[Parameter]
+	public String ExecutionId { get; set; }
+
+	[Parameter]
+	public String TestCaseId { get; set; }
+
+	[Parameter]
+	public String BusinessProcessId { get; set; }
+
+	[Parameter]
+	public String TestApplicationId { get; set; }
+
+	private Execution Execution = new();
+	private DataTable CurrentDataPool;
+	private Boolean ShowDefectDetailsModal = false;
+	private Boolean ActionsButton = false;
+	private Boolean IsLoading = false;
+	private Boolean DefectIsReported = false;
+	private Boolean IsRetest = false;
+	private String Tester;
+	private String Assignee;
+	private String Status = "Waiting...";
+	private String CurrentDataPoolStatus = "Waiting...";
+	private String HtmlReportString;
+	private String ReportHeight;
+	private String StatusBg;
+	private String Role;
+	private String ExecutionDate;
+	private String Id;
+
+	private async Task Download(Boolean isReport)
+	{
+		Status = "Wait...";
+		IsLoading = true;
+
+		if (isReport)
+		{
+			try
+			{
+				var fileName = "index.html";
+				var stream = new MemoryStream(Compression.Decompress(Execution.TestReport));
+
+				await FileSaver.SaveAsync(fileName, stream, default);
+			}
+			catch (Exception)
+			{
+				await App.Current.MainPage.DisplayAlert("Incorrect", "An unexpected error occurred!", "Ok");
+			}
+
+			await Task.Delay(1000);
+		}
+		else
+		{
+			try
+			{
+				var fileName = $"{Execution.TestCase.Name}.xlsx";
+				var stream = new MemoryStream(Execution.TestData);
+
+				await FileSaver.SaveAsync(fileName, stream, default);
+			}
+			catch (Exception)
+			{
+				await App.Current.MainPage.DisplayAlert("Incorrect", "An unexpected error occurred!", "Ok");
+			}
+		}
+
+		IsLoading = false;
+	}
+
+	private async Task LoadTestReport()
+	{
+		if (Execution != null)
+		{
+			var execution = await executionsService.GetExecutionAsync(ExecutionId, true, false);
+
+			Execution.TestReport = execution.TestReport;
+
+			HtmlReportString = Encoding.Default.GetString(Compression.Decompress(Execution.TestReport));
+		}
+	}
+
+	private async Task LoadTestData()
+	{
+		CurrentDataPool = new();
+
+		if (Execution != null)
+		{
+			var execution = await executionsService.GetExecutionAsync(ExecutionId, false, true);
+
+			Execution.TestData = execution.TestData;
+
+			if (Execution.TestData != null)
+			{
+				CurrentDataPoolStatus = "Loading...";
+
+				var memoryStream = new MemoryStream(Execution.TestData);
+				var workBook = new XLWorkbook(memoryStream);
+				var workSheet = workBook.Worksheet(1);
+				var firstRow = true;
+
+				foreach (var row in workSheet.RangeUsed().RowsUsed())
+				{
+					if (firstRow)
+					{
+						foreach (IXLCell cell in row.Cells())
+							CurrentDataPool.Columns.Add(cell.GetString());
+
+						firstRow = false;
+					}
+					else
+					{
+						CurrentDataPool.Rows.Add();
+
+						var rowStart = 0;
+
+						foreach (IXLCell cell in row.Cells(row.FirstCellUsed().Address.ColumnNumber, row.LastCellUsed().Address.ColumnNumber))
+						{
+							CurrentDataPool.Rows[CurrentDataPool.Rows.Count - 1][rowStart] = cell.GetString();
+							rowStart++;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	private async Task LoadExecution()
+	{
+		Execution = await executionsService.GetExecutionAsync(ExecutionId, false, false);
+
+		if (Execution != null)
+		{
+			if (Role == "Root" || Role == "Manager" || Role == "Administrator" || Id == Execution.UserId)
+				ActionsButton = true;
+
+			switch (Execution.ExecutionStatus)
+			{
+				case ExecutionStatus.Pass:
+					StatusBg = "bg-grass";
+					ReportHeight = "73vh";
+					break;
+
+				case ExecutionStatus.Fail:
+					StatusBg = "bg-mammee";
+					ReportHeight = "65vh";
+					break;
+
+				case ExecutionStatus.NotRun:
+					StatusBg = "bg-sky";
+					ReportHeight = "65vh";
+					break;
+
+				case ExecutionStatus.Stop:
+					StatusBg = "bg-pineapple";
+					ReportHeight = "65vh";
+					break;
+			}
+
+			if (Execution.Defect != null)
+			{
+				DefectIsReported = true;
+				Tester = Execution.User.DisplayName;
+				Assignee = $"{Execution.Defect.User.Email} | {Execution.Defect.User.DisplayName}";
+				ExecutionDate = Execution.ExecutionDate.ToString();
+			}
+		}
+		else
+		{
+			await App.Current.MainPage.DisplayAlert("Incorrect", "No execution info found!", "Ok");
+
+			navigationManager.NavigateTo($"/executions/list/{TestCaseId}/{BusinessProcessId}/{TestApplicationId}");
+
+			if (From == "executions")
+				navigationManager.NavigateTo($"/executions/list/{TestCaseId}/{BusinessProcessId}/{TestApplicationId}");
+			else
+			{
+				if (From == "suiteExecutions")
+					navigationManager.NavigateTo($"/executions/list/{TestCaseId}/{BusinessProcessId}/{TestApplicationId}");
+				else
+				{
+					if (From == "single")
+						navigationManager.NavigateTo($"/home/executions/list");
+					else
+						navigationManager.NavigateTo($"/executions/list/{TestCaseId}/{BusinessProcessId}/{TestApplicationId}");
+				}
+			}
+		}
+	}
+
+	private async Task Run(Boolean isRetest)
+	{
+		IsRetest = isRetest;
+
+		if (Execution.TestCase.TestDataIsRequired && Execution.TestData == null)
+			await App.Current.MainPage.DisplayAlert("Warning", "To execute the test case an excel file with data is required!", "Ok");
+		else
+		{
+			if (Connectivity.NetworkAccess == NetworkAccess.Internet)
+			{
+				Execution.ExecutionDate = DateTime.Now;
+
+				Test test = new();
+
+				Status = "Running...";
+				IsLoading = true;
+
+				test = await Task.Delay(2000).ContinueWith(task =>
+					Evidences.Run(Execution.TestCase.BusinessProcess.TestApplication.NameSpace,
+						Execution.TestCase.BusinessProcess.NameSpace,
+						Execution.TestCase.Name,
+						Execution.TestData,
+						Execution.BrowserDriver,
+						Execution.TestEnvironment,
+						FileSystem.CacheDirectory
+					)
+				);
+
+				if (test != null)
+				{
+					switch (test.ExecutionStatus)
+					{
+						case TestLab.Utilities.ExecutionStatus.DontExist:
+							await App.Current.MainPage.DisplayAlert("Incorrect", $"No test case named: {Execution.TestCase.Name} was found!", "Ok");
+							break;
+
+						case TestLab.Utilities.ExecutionStatus.NotRun:
+							await App.Current.MainPage.DisplayAlert("Warning", $"The test case called: {Execution.TestCase.Name} was not executed!", "Ok");
+							break;
+
+						case TestLab.Utilities.ExecutionStatus.Stop:
+							await App.Current.MainPage.DisplayAlert("Warning", $"The execution of the test case called: {Execution.TestCase.Name} was stopped!", "Ok");
+							break;
+
+						case TestLab.Utilities.ExecutionStatus.Fail:
+							Execution.ExecutionStatus = test.ExecutionStatus;
+							Execution.TestReport = Compression.Compress(Compression.Minify(File.ReadAllBytes(Path.Combine(test.ReportPath, "index.html"))));
+
+							Execution = await executionsService.UpdateExecutionAsync(Execution, BusinessProcessId, TestApplicationId, navigationManager, From, true);
+							await App.Current.MainPage.DisplayAlert("Incorrect", $"The execution of the test case called: {Execution.TestCase.Name} failed!", "Ok");
+
+							if (isRetest)
+								ShowDefectDetailsModal = true;
+
+							break;
+
+						case TestLab.Utilities.ExecutionStatus.Pass:
+							Execution.ExecutionStatus = test.ExecutionStatus;
+							Execution.TestReport = Compression.Compress(Compression.Minify(File.ReadAllBytes(Path.Combine(test.ReportPath, "index.html"))));
+
+							Execution = await executionsService.UpdateExecutionAsync(Execution, BusinessProcessId, TestApplicationId, navigationManager, From, true);
+							await App.Current.MainPage.DisplayAlert("Correct", $"The test case called: {Execution.TestCase.Name} was successfully executed!", "Ok");
+							break;
+
+						default:
+							await App.Current.MainPage.DisplayAlert("Incorrect", "An unexpected error occurred!", "Ok");
+							break;
+					}
+
+					var task = Task.Run(async () => await LoadExecution());
+
+					task.Wait();
+
+					await task.ContinueWith(_ => LoadTestReport().Wait())
+						.ContinueWith(_ => LoadTestData().Wait());
+				}
+				else
+					await App.Current.MainPage.DisplayAlert("Incorrect", "The selected browser is not installed!", "Ok");
+
+				IsLoading = false;
+			}
+			else
+				await App.Current.MainPage.DisplayAlert("Connection error", "Please check your internet connection and try again!", "Ok");
+		}
+	}
+
+	private async Task Save()
+	{
+		if (String.IsNullOrEmpty(Execution.Defect.Summary) && String.IsNullOrWhiteSpace(Execution.Defect.Summary) ||
+			String.IsNullOrEmpty(Execution.Defect.Description) && String.IsNullOrWhiteSpace(Execution.Defect.Description) ||
+			String.IsNullOrEmpty(Execution.Defect.UserId) && String.IsNullOrWhiteSpace(Execution.Defect.UserId) ||
+			Execution.Defect.DefectPriority == 0 && Execution.Defect.DefectSeverity == 0 && Execution.Defect.DefectStatus == 0)
+			await App.Current.MainPage.DisplayAlert("Warning", "One or more fields are empty!", "Ok");
+		else
+		{
+			if (Connectivity.NetworkAccess == NetworkAccess.Internet)
+			{
+				Execution.Defect.DefectStatus = DefectStatus.Retested;
+
+				var result = await defectsService.UpdateDefectAsync(Execution.Defect);
+
+				ShowDefectDetailsModal = false;
+				IsRetest = false;
+
+				if (result != null)
+				{
+					if (Email.Default.IsComposeSupported)
+					{
+						var subject = $"The bug found in the test case called: {Execution.TestCase.Name} persists; Test case retested by: {Tester}";
+						var body = $"Defect priority: {Execution.Defect.DefectPriority}\n"
+							+ $"Defect severity: {Execution.Defect.DefectSeverity}\n"
+							+ $"Defect status: {Execution.Defect.DefectStatus}\n\n"
+							+ $"Defect summary: {Execution.Defect.Summary}\n\n"
+							+ $"Defect description:\n{Execution.Defect.Description}\n\n"
+							+ $"The generated execution report and the used test data file are attached.\n\n"
+							+ $"Regards!";
+
+						String[] recipients = new[] { Execution.Defect.User.Email };
+
+						var message = new EmailMessage
+						{
+							Subject = subject,
+							Body = body,
+							BodyFormat = EmailBodyFormat.PlainText,
+							To = new List<String>(recipients)
+						};
+
+						if (Execution.TestData != null)
+						{
+							File.WriteAllBytes(Path.Combine(FileSystem.CacheDirectory, $"{Execution.TestCase.Name}.xlsx"), Execution.TestData);
+
+							var testDataPath = Path.Combine(FileSystem.CacheDirectory, $"{Execution.TestCase.Name}.xlsx");
+
+							message.Attachments.Add(new EmailAttachment(testDataPath));
+						}
+
+						File.WriteAllBytes(Path.Combine(FileSystem.CacheDirectory, "index.html"), Compression.Decompress(Execution.TestReport));
+
+						var reportPath = Path.Combine(FileSystem.CacheDirectory, "index.html");
+
+						message.Attachments.Add(new EmailAttachment(reportPath));
+
+						await Email.Default.ComposeAsync(message);
+					}
+				}
+			}
+			else
+				await App.Current.MainPage.DisplayAlert("Connection error", "Please check your internet connection and try again!", "Ok");
+		}
+	}
+
+	protected override async Task OnInitializedAsync()
+	{
+		Preferences.Set("executionId", ExecutionId);
+
+		if (Preferences.ContainsKey("role"))
+			Role = Preferences.Get("role", null) as String;
+
+		if (Preferences.ContainsKey("id"))
+			Id = Preferences.Get("id", null) as String;
+
+		if (Connectivity.NetworkAccess == NetworkAccess.Internet)
+		{
+			var task = Task.Run(async () => await LoadExecution());
+
+			task.Wait();
+
+			await task.ContinueWith(_ => LoadTestReport().Wait())
+				.ContinueWith(_ => LoadTestData().Wait());
+		}
+		else
+		{
+			await App.Current.MainPage.DisplayAlert("Connection error", "Please check your internet connection and try again!", "Ok");
+
+			navigationManager.NavigateTo($"/executions/result/{From}/{ExecutionId}/{TestCaseId}/{BusinessProcessId}/{TestApplicationId}", true);
+		}
+	}
+}

@@ -1,0 +1,89 @@
+﻿@model IEnumerable<Execution>
+@{
+    ViewData["Title"] = "Reports";
+}
+
+<div class="p-4">
+    <div class="card">
+        <div class="card-header bg-blueberry">
+            <div class="d-flex justify-content-between">
+                <h3 class="h3"><i class="fa fa-chart-pie"></i> @ViewBag.Title</h3>
+                <div class="btn-toolbar mb-2 mb-md-0">
+                    <div class="btn-group btn-sm">
+                        <a asp-controller="Home" asp-action="Index" class="btn btn-storm"><i class="fa fa-backward"></i> Go back</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <section class="col-md-8 col-lg-8 col-xl-8 mb-3">
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="chart-container">
+                                <canvas id="chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                <section class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="d-flex justify-content-between">
+                                <h5 class="h5 mb-2 mt-2"><i class="fa fa-plus-circle"></i> New report</h5>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <form asp-controller="Reports" asp-action="Create" id="create" class="needs-validation" novalidate autocomplete="off">
+                                <div class="form-floating mb-3">
+                                    <input class="form-control" id="reportTitle" name="reportTitle" placeholder="Report title" required />
+                                    <label>Report title</label>
+                                    <div class="invalid-feedback">
+                                        Please write a title for the report.
+                                    </div>
+                                </div>
+                                <div class="form-floating mb-3">
+                                    <input class="form-control" id="startDate" name="startDate" type="date" placeholder="Execution start date" required />
+                                    <label>Execution start date</label>
+                                    <div class="invalid-feedback">
+                                        Please select the start date.
+                                    </div>
+                                </div>
+                                <div class="form-floating">
+                                    <input class="form-control" id="endDate" name="endDate" type="date" placeholder="Execution end date" required />
+                                    <label>Execution end date</label>
+                                    <div class="invalid-feedback">
+                                        Please select the end date.
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="card-footer">
+                            <div class="btn-group btn-sm w-100">
+                                <button type="submit" value="Create" class="btn btn-confirm" form="create"><i class="fa fa-check"></i> Generate</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+        <div class="card-footer" id="footerDiv" style="display:none">
+            <div class="btn-group btn-sm w-100" id="downloadReport"></div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        var customSwal = Swal.mixin({
+            customClass: {
+                confirmButton: 'btn btn-confirm',
+                cancelButton: 'btn btn-mist'
+            },
+            buttonsStyling: false,
+            showCloseButton: true,
+            confirmButtonText: '<i class="fa fa-check"></i> OK',
+        });
+    </script>
+    <script src="~/js/reports/create.min.js" asp-append-version="true"></script>
+}

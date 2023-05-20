@@ -1,0 +1,40 @@
+﻿@model SuiteExecution
+@{
+    ViewData["Title"] = "Search test suite executions";
+}
+
+<div class="modal-content">
+    <div class="modal-header bg-blueberry">
+        <h5 class="modal-title"><i class="fa fa-magnifying-glass"></i> @ViewBag.Title</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+    </div>
+    <div class="modal-body">
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+        <form asp-controller="SuiteExecutions" asp-action="Index" id="searchSuite" class="needs-validation" novalidate autocomplete="off">
+            <div class="form-floating mb-3">
+                <select asp-for="BusinessProcess.TestApplication.TestApplicationId" id="suiteTestApplicationId" name="TestApplicationId" asp-items="ViewBag.TestApplications" class="form-select" required>
+                    <option value="" disabled selected>Select test application</option>
+                </select>
+                <label asp-for="BusinessProcess.TestApplication.TestApplicationId" class="form-label"></label>
+                <div class="invalid-feedback">
+                    Please choose a test application.
+                </div>
+            </div>
+            <div class="form-floating">
+                <select asp-for="BusinessProcess.BusinessProcessId" id="suiteBusinessProcessId" name="BusinessProcessId" class="form-select" disabled required>
+                    <option value="" disabled selected>Select business process</option>
+                </select>
+                <label asp-for="BusinessProcess.BusinessProcessId" class="form-label"></label>
+                <div class="invalid-feedback">
+                    Please choose a business process.
+                </div>
+            </div>
+        </form>
+    </div>
+    <div class="modal-footer bg-light">
+        <div class="btn-group w-100">
+            <button type="submit" value="Search" class="btn btn-confirm" form="searchSuite"><i class="fa fa-check"></i> Accept</button>
+            <button type="button" class="btn btn-mist" data-bs-dismiss="modal"><i class="fa fa-ban"></i> Cancelar</button>
+        </div>
+    </div>
+</div>

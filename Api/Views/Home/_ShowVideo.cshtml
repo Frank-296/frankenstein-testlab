@@ -1,0 +1,15 @@
+﻿@{
+    ViewData["Title"] = "Demo viewer";
+}
+
+<div class="modal-content">
+    <div class="modal-header bg-blueberry">
+        <h5 class="modal-title"><i class="fa fa-film"></i> @ViewBag.Title<span id="videoFileName"></span></h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+    </div>
+    <div class="modal-body">
+        <video class="video-js" preload="auto" controls style="width:100%; height:100%; object-fit:contain" data-setup="{}">
+            <source src="../vid/blackscreen.mp4" />
+        </video>
+    </div>
+</div>

@@ -1,0 +1,428 @@
+﻿@page "/executions/execute/{from}/{testCaseId}/{businessProcessId}/{testApplicationId}"
+@inject IExecutionsStore<Execution> executionsService
+@inject ITestCasesStore<TestCase> testCasesService
+@inject NavigationManager navigationManager
+
+<div>
+	<div class="p-4">
+		<div class="card mb-3">
+			<div class="card-header bg-blueberry">
+				<div class="d-flex justify-content-between">
+					<h5 class="h5 mb-2 mt-2"><span class="oi oi-media-play" aria-hidden="true"></span> Execute test case</h5>
+					<div class="btn-toolbar mb-2 mb-md-0">
+						<div class="btn-group btn-sm">
+							@if (TestCase.TestDataIsRequired)
+							{
+								if (TestCase.TestData != null)
+								{
+									<button class="btn btn-kiwi" @onclick="Download"><span class="oi oi-data-transfer-download"></span> Download template</button>
+								}
+							}
+							@if (From == "defects")
+							{
+								<a class="btn btn-storm" href="/defects/list"><span class="oi oi-media-skip-backward"></span> Go back</a>
+							}
+							else
+							{
+								if (From == "executions")
+								{
+									<a class="btn btn-storm" href="/executions/list/@TestCaseId/@BusinessProcessId/@TestApplicationId"><span class="oi oi-media-skip-backward"></span> Go back</a>
+								}
+								else
+								{
+									if (From == "single")
+									{
+										<a class="btn btn-storm" href="/executions/result/@From/@ExecutionId/@TestCaseId/@BusinessProcessId/@TestApplicationId"><span class="oi oi-media-skip-backward"></span> Go back</a>
+									}
+									else
+									{
+										<a class="btn btn-storm" href="/suiteExecutions/result/@From/@ExecutionId/@BusinessProcessId/@TestApplicationId"><span class="oi oi-media-skip-backward"></span> Go back</a>
+									}
+								}
+							}
+						</div>
+					</div>
+				</div>
+			</div>
+			<div class="card-body">
+				<EditForm Model="Execution">
+					<div class="form-floating mb-3">
+						<InputText class="form-control" placeholder="Executor" @bind-Value="Tester" disabled></InputText>
+						<label>Executor</label>
+					</div>
+					<div class="form-floating mb-3">
+						<InputText class="form-control" placeholder="Date and time of execution" @bind-Value="ExecutionDate" disabled></InputText>
+						<label>Date and time of execution</label>
+					</div>
+					<div class="form-floating mb-3">
+						<InputText class="form-control" placeholder="Test case" @bind-Value="TestCase.Name" disabled></InputText>
+						<label>Test case</label>
+					</div>
+					<div class="form-floating mb-3">
+						<InputTextArea class="form-control" placeholder="Description" style="height:300px" @bind-Value="TestCase.Description" disabled></InputTextArea>
+						<label>Description</label>
+					</div>
+					<div class="form-floating mb-3">
+						<InputTextArea class="form-control" placeholder="Preconditions" style="height:300px" @bind-Value="TestCase.Preconditions" disabled></InputTextArea>
+						<label>Preconditions</label>
+					</div>
+					<div class="form-floating mb-3">
+						<InputTextArea class="form-control" placeholder="Comments/Remarks" style="height:300px" @bind-Value="Execution.Remarks"></InputTextArea>
+						<label>Comments/Remarks</label>
+					</div>
+					<div class="form-floating mb-3">
+						<InputSelect class="form-select" placeholder="Browser" @bind-Value="Execution.BrowserDriver">
+							<option value="0" disabled selected>Select browser</option>
+							@foreach (var browser in Enum.GetValues(typeof(BrowserDriver)))
+							{
+								<option value="@browser">@browser</option>
+							}
+						</InputSelect>
+						<label>Browser</label>
+					</div>
+					<div class="form-floating mb-3">
+						<InputSelect class="form-select" placeholder="Environment" @bind-Value="Execution.TestEnvironment">
+							<option value="0" disabled selected>Select environment</option>
+							@foreach (var testEnvironment in Enum.GetValues(typeof(TestEnvironment)))
+							{
+								<option value="@testEnvironment">@testEnvironment</option>
+							}
+						</InputSelect>
+						<label>Environment</label>
+					</div>
+					@if (TestCase.TestDataIsRequired)
+					{
+						<div class="file-input">
+							<label for="formFile" class="form-label">Test data for execution</label>
+							<InputFile class="form-control" accept=".xlsx, xls" @key="InputFieldId" OnChange="OnInputFileChange"></InputFile>
+						</div>
+					}
+				</EditForm>
+			</div>
+			<div class="card-footer">
+				<div class="btn-group btn-sm w-100">
+					<button class="btn btn-confirm" @onclick="Run"><span class="oi oi-play-circle" aria-hidden="true"></span> Run</button>
+					@if (From == "defects")
+					{
+						<a class="btn btn-mist" href="/defects/list"><span class="oi oi-ban" aria-hidden="true"></span> Cancel</a>
+					}
+					else
+					{
+						if (From == "executions")
+						{
+							<a class="btn btn-mist" href="/executions/list/@TestCaseId/@BusinessProcessId/@TestApplicationId"><span class="oi oi-ban" aria-hidden="true"></span> Cancel</a>
+						}
+						else
+						{
+							if (From == "single")
+							{
+								<a class="btn btn-mist" href="/executions/result/@From/@ExecutionId/@TestCaseId/@BusinessProcessId/@TestApplicationId"><span class="oi oi-ban" aria-hidden="true"></span> Cancel</a>
+							}
+							else
+							{
+								<a class="btn btn-mist" href="/suiteExecutions/result/@From/@ExecutionId/@BusinessProcessId/@TestApplicationId"><span class="oi oi-ban" aria-hidden="true"></span> Cancel</a>
+							}
+						}
+					}
+				</div>
+			</div>
+		</div>
+		@if (TestCase.TestDataIsRequired)
+		{
+			<div class="card">
+				<div class="card-header bg-blueberry">
+					<div class="d-flex justify-content-between">
+						<h5 class="h5 mb-2 mt-2"><span class="oi oi-info" aria-hidden="true"></span> Data extracted from excel</h5>
+					</div>
+				</div>
+				<div class="card-body">
+					@if (NewDataPool.Rows.Count == 0)
+					{
+						<p><em>@NewDataPoolStatus</em></p>
+					}
+					else
+					{
+						<table id="table" class="table table-sm table-bordered table-striped" cellspacing="0" width="100%">
+							<thead>
+								<tr>
+									@foreach (DataColumn column in NewDataPool.Columns)
+									{
+										<th>@column.ColumnName</th>
+									}
+								</tr>
+							</thead>
+							<tbody>
+								@foreach (DataRow row in NewDataPool.Rows)
+								{
+									<tr>
+										@foreach (DataColumn column in NewDataPool.Columns)
+										{
+											<td>@row[column.ColumnName]</td>
+										}
+									</tr>
+								}
+							</tbody>
+						</table>
+					}
+				</div>
+			</div>
+		}
+	</div>
+</div>
+
+@if (IsLoading)
+{
+	<div class="modal fade show" style="display:block" tabindex="-1">
+		<div class="modal-dialog modal-dialog-centered modal-sm modal-dialog-scrollable">
+			<div class="modal-content">
+				<div class="modal-header bg-blueberry">
+					<h5 class="modal-title"><span class="oi oi-clock" aria-hidden="true"></span> @LoadingStatus</h5>
+				</div>
+				<div class="modal-body" style="min-height:250px">
+					<div class="spinner"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="modal-backdrop fade show"></div>
+}
+
+@code {
+	[Parameter]
+	public String From { get; set; }
+
+	[Parameter]
+	public String TestCaseId { get; set; }
+
+	[Parameter]
+	public String BusinessProcessId { get; set; }
+
+	[Parameter]
+	public String TestApplicationId { get; set; }
+
+	private TestCase TestCase = new();
+	private Execution Execution = new();
+	private DataTable NewDataPool = new();
+	private Guid InputFieldId = Guid.NewGuid();
+	private Boolean IsLoading = false;
+	private String Tester;
+	private String ExecutionDate;
+	private String NewDataPoolStatus = "Waiting...";
+	private String LoadingStatus = "Waiting...";
+	private String ExecutionId;
+
+	private async Task Download()
+	{
+		LoadingStatus = "Wait...";
+		IsLoading = true;
+
+		try
+		{
+			var fileName = $"{TestCase.Name}.xlsx";
+			var stream = new MemoryStream(TestCase.TestData);
+
+			await FileSaver.SaveAsync(fileName, stream, default);
+		}
+		catch (Exception)
+		{
+			await App.Current.MainPage.DisplayAlert("Incorrect", "An unexpected error occurred!", "Ok");
+		}
+
+		await Task.Delay(1000);
+
+		IsLoading = false;
+	}
+
+	private async Task OnInputFileChange(InputFileChangeEventArgs e)
+	{
+		NewDataPool = new();
+		NewDataPoolStatus = "Loading...";
+
+		var testData = e.File;
+		var fileStream = testData.OpenReadStream();
+		var memoryStream = new MemoryStream();
+
+		await fileStream.CopyToAsync(memoryStream);
+
+		try
+		{
+			var workBook = new XLWorkbook(memoryStream);
+			var workSheet = workBook.Worksheet(1);
+			var firstRow = true;
+
+			if (!(workSheet.RangeUsed().RowsUsed().Count() >= 2))
+			{
+				await App.Current.MainPage.DisplayAlert("Warning", "The selected file is empty!", "Ok");
+
+				InputFieldId = Guid.NewGuid();
+			}
+			else
+			{
+				foreach (var row in workSheet.RangeUsed().RowsUsed())
+				{
+					if (firstRow)
+					{
+						foreach (IXLCell cell in row.Cells())
+							NewDataPool.Columns.Add(cell.GetString());
+
+						firstRow = false;
+					}
+					else
+					{
+						NewDataPool.Rows.Add();
+
+						var rowStart = 0;
+
+						foreach (IXLCell cell in row.Cells(row.FirstCellUsed().Address.ColumnNumber, row.LastCellUsed().Address.ColumnNumber))
+						{
+							NewDataPool.Rows[NewDataPool.Rows.Count - 1][rowStart] = cell.GetString();
+							rowStart++;
+						}
+					}
+				}
+
+				Execution.TestData = memoryStream.ToArray();
+			}
+		}
+		catch (Exception)
+		{
+			await App.Current.MainPage.DisplayAlert("Warning", "The selected file is invalid!", "Ok");
+
+			InputFieldId = Guid.NewGuid();
+		}
+	}
+
+	private async Task Run()
+	{
+		if (TestCase.TestDataIsRequired && Execution.TestData == null)
+			await App.Current.MainPage.DisplayAlert("Warning", "To execute the test case an excel file with data is required!", "Ok");
+		else
+		{
+			if (Execution.BrowserDriver == 0)
+				await App.Current.MainPage.DisplayAlert("Warning", "You need to choose a browser!", "Ok");
+			else
+			{
+				if (Execution.TestEnvironment == 0)
+					await App.Current.MainPage.DisplayAlert("Warning", "You need to choose a environment!", "Ok");
+				else
+				{
+					if (Connectivity.NetworkAccess == NetworkAccess.Internet)
+					{
+						if (Preferences.ContainsKey("id"))
+							Execution.UserId = Preferences.Get("id", null) as String;
+
+						Execution.ExecutionId = Guid.NewGuid().ToString();
+						Execution.TestCaseId = TestCaseId;
+						Execution.ExecutionDate = DateTime.Now;
+
+						Test test = new();
+
+						LoadingStatus = "Running...";
+						IsLoading = true;
+
+						test = await Task.Delay(2000).ContinueWith(task =>
+							Evidences.Run(TestCase.BusinessProcess.TestApplication.NameSpace,
+								TestCase.BusinessProcess.NameSpace,
+								TestCase.Name,
+								Execution.TestData,
+								Execution.BrowserDriver,
+								Execution.TestEnvironment,
+								FileSystem.CacheDirectory
+							)
+						);
+
+						Preferences.Set("newExecutionId", Execution.ExecutionId);
+
+						if (test != null)
+						{
+							switch (test.ExecutionStatus)
+							{
+								case TestLab.Utilities.ExecutionStatus.DontExist:
+									await App.Current.MainPage.DisplayAlert("Incorrect", $"No test case named: {TestCase.Name} was found!", "Ok");
+									break;
+
+								case TestLab.Utilities.ExecutionStatus.NotRun:
+									await App.Current.MainPage.DisplayAlert("Warning", $"The test case called: {TestCase.Name} was not executed!", "Ok");
+									break;
+
+								case TestLab.Utilities.ExecutionStatus.Stop:
+									await App.Current.MainPage.DisplayAlert("Warning", $"The execution of the test case called: {TestCase.Name} was stopped!", "Ok");
+									break;
+
+								case TestLab.Utilities.ExecutionStatus.Fail:
+									Execution.ExecutionStatus = test.ExecutionStatus;
+									Execution.TestReport = Compression.Compress(Compression.Minify(File.ReadAllBytes(Path.Combine(test.ReportPath, "index.html"))));
+
+									await executionsService.AddExecutionAsync(Execution, BusinessProcessId, TestApplicationId, navigationManager, From, true);
+									await App.Current.MainPage.DisplayAlert("Incorrect", $"The execution of the test case called: {TestCase.Name} failed!", "Ok");
+									break;
+
+								case TestLab.Utilities.ExecutionStatus.Pass:
+									Execution.ExecutionStatus = test.ExecutionStatus;
+									Execution.TestReport = Compression.Compress(Compression.Minify(File.ReadAllBytes(Path.Combine(test.ReportPath, "index.html"))));
+
+									await executionsService.AddExecutionAsync(Execution, BusinessProcessId, TestApplicationId, navigationManager, From, true);
+									await App.Current.MainPage.DisplayAlert("Correct", $"The test case called: {TestCase.Name} was successfully executed!", "Ok");
+									break;
+
+								default:
+									await App.Current.MainPage.DisplayAlert("Incorrect", "An unexpected error occurred!", "Ok");
+									break;
+							}
+						}
+						else
+							await App.Current.MainPage.DisplayAlert("Incorrect", "The selected browser is not installed!", "Ok");
+
+						IsLoading = false;
+					}
+					else
+						await App.Current.MainPage.DisplayAlert("Connection error", "Please check your internet connection and try again!", "Ok");
+				}
+			}
+		}
+	}
+
+	protected override async Task OnInitializedAsync()
+	{
+		if (Preferences.ContainsKey("executionId"))
+			ExecutionId = Preferences.Get("executionId", null) as String;
+
+		if (Preferences.ContainsKey("tester"))
+			Tester = Preferences.Get("tester", null) as String;
+
+		if (Connectivity.NetworkAccess == NetworkAccess.Internet)
+		{
+			ExecutionDate = DateTime.Now.ToString();
+
+			TestCase = await testCasesService.GetTestCaseAsync(TestCaseId);
+
+			if (TestCase != null)
+				return;
+			else
+			{
+				await App.Current.MainPage.DisplayAlert("Incorrect", "No test case information found!", "Ok");
+
+				if (From == "defects")
+					navigationManager.NavigateTo($"/defects/list");
+				else
+				{
+					if (From == "executions")
+						navigationManager.NavigateTo($"/executions/list/{TestCaseId}/{BusinessProcessId}/{TestApplicationId}");
+					else
+					{
+						if (From == "single")
+							navigationManager.NavigateTo($"/executions/result/{From}/{ExecutionId}/{TestCaseId}/{BusinessProcessId}/{TestApplicationId}");
+						else
+							navigationManager.NavigateTo($"/suiteExecutions/result/{From}/{ExecutionId}/{BusinessProcessId}/{TestApplicationId}");
+					}
+				}
+			}
+		}
+		else
+		{
+			await App.Current.MainPage.DisplayAlert("Connection error", "Please check your internet connection and try again!", "Ok");
+
+			navigationManager.NavigateTo($"/executions/execute/{From}/{TestCaseId}/{BusinessProcessId}/{TestApplicationId}", true);
+		}
+	}
+}

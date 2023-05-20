@@ -1,0 +1,145 @@
+﻿@inject IDefectsStore<Defect> defectsService
+@inject NavigationManager navigationManager
+
+<div class="top-row ps-3 navbar navbar-dark">
+	<div class="container-fluid">
+		<a class="navbar-brand" href="">Menu</a>
+		<button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
+			<span class="navbar-toggler-icon"></span>
+		</button>
+	</div>
+</div>
+
+<div class="@NavMenuCssClass" @onclick="ToggleNavMenu">
+	<nav class="flex-column">
+		<div class="nav-item px-3">
+			<NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+				<span class="oi oi-home" aria-hidden="true"></span> Home
+			</NavLink>
+		</div>
+		<div class="nav-item px-3">
+			<NavLink class="nav-link dropdown-toggle" style="cursor:pointer" @onclick="() => ExpandExecutionsSubMenu = !ExpandExecutionsSubMenu">
+				<span class="oi oi-task" aria-hidden="true"></span> Executions
+			</NavLink>
+			@if (ExpandExecutionsSubMenu)
+			{
+				<ul class="nav flex-column">
+					<li class="nav-item px-3">
+						<NavLink class="nav-link" href="/home/executions/list">
+							<span class="oi oi-chevron-right" aria-hidden="true"></span> Single
+						</NavLink>
+					</li>
+					<li class="nav-item px-3">
+						<NavLink class="nav-link" href="/home/suiteExecutions/list">
+							<span class="oi oi-chevron-right" aria-hidden="true"></span> Test suite
+						</NavLink>
+					</li>
+				</ul>
+			}
+		</div>
+		<div class="nav-item px-3">
+			<NavLink class="nav-link" href="/defects/list">
+				<span class="oi oi-bug" aria-hidden="true"></span> Defects <p>&nbsp;<span class="badge bg-sky">@DefectsCounter</span></p>
+			</NavLink>
+		</div>
+		<div class="nav-item px-3">
+			<NavLink class="nav-link" href="/reports/create">
+				<span class="oi oi-pie-chart" aria-hidden="true"></span> Reports
+			</NavLink>
+		</div>
+		@if (Role == "Root" || Role == "Manager" || Role == "Administrator")
+		{
+			<div class="nav-item px-3">
+				<NavLink class="nav-link dropdown-toggle" style="cursor:pointer" @onclick="() => ExpandSettingsSubMenu = !ExpandSettingsSubMenu">
+					<span class="oi oi-cog" aria-hidden="true"></span> Settings
+				</NavLink>
+				@if (ExpandSettingsSubMenu)
+				{
+					<ul class="nav flex-column">
+						@if (Role == "Root" || Role == "Manager")
+						{
+							<li class="nav-item px-3">
+								<NavLink class="nav-link" href="/companies/list">
+									<span class="oi oi-briefcase" aria-hidden="true"></span> Companies
+								</NavLink>
+							</li>
+						}
+						<li class="nav-item px-3">
+							<NavLink class="nav-link" href="/users/list">
+								<span class="oi oi-people" aria-hidden="true"></span> Users
+							</NavLink>
+						</li>
+						@if (Role == "Root" || Role == "Manager" || Role == "Developer")
+						{
+							<li class="nav-item px-3">
+								<NavLink class="nav-link" href="/roles/list">
+									<span class="oi oi-lock-locked" aria-hidden="true"></span> Roles
+								</NavLink>
+							</li>
+						}
+					</ul>
+				}
+			</div>
+		}
+		<div class="nav-item px-3">
+			<NavLink class="nav-link" style="cursor:pointer" @onclick="LogOut">
+				<span class="oi oi-account-logout" aria-hidden="true"></span> Log out
+			</NavLink>
+		</div>
+	</nav>
+</div>
+
+@code {
+	[Parameter]
+	public String Role { get; set; }
+
+	private IList<Defect> Defects;
+	private Boolean CollapseNavMenu = true;
+	private Boolean ExpandSettingsSubMenu;
+	private Boolean ExpandExecutionsSubMenu;
+	private String NavMenuCssClass => CollapseNavMenu ? "collapse" : null;
+	private String DefectsCounter;
+	private String Id;
+
+	private void ToggleNavMenu() => CollapseNavMenu = !CollapseNavMenu;
+
+	private async Task LogOut()
+	{
+		if (await App.Current.MainPage.DisplayAlert("Log out", "Are you sure to log out?", "Yes", "No"))
+		{
+			Preferences.Clear();
+			SecureStorage.RemoveAll();
+
+			navigationManager.NavigateTo("/", true);
+		}
+	}
+
+	protected override async Task OnInitializedAsync()
+	{
+		if (Role == "Root" || Role == "Manager" || Role == "Administrator" || Role == "Automator")
+		{
+			if (Preferences.ContainsKey("id"))
+				Id = Preferences.Get("id", null) as String;
+
+			if (Connectivity.NetworkAccess == NetworkAccess.Internet)
+			{
+				Defects = await defectsService.GetDefectsAsync(Id);
+
+				if (Role == "Automator")
+				{
+					if (Defects.Where(d => d.DefectStatus == DefectStatus.Assigned || d.DefectStatus == DefectStatus.Retested && d.Execution.ExecutionStatus == ExecutionStatus.Fail).Count() == 0)
+						DefectsCounter = "";
+					else
+						DefectsCounter = Defects.Where(d => d.DefectStatus == DefectStatus.Assigned || d.DefectStatus == DefectStatus.Retested && d.Execution.ExecutionStatus == ExecutionStatus.Fail).Count().ToString();
+				}
+				else
+				{
+					if (Defects.Where(d => d.DefectStatus == DefectStatus.Fixed && d.Execution.ExecutionStatus == ExecutionStatus.NotRun).Count() == 0)
+						DefectsCounter = "";
+					else
+						DefectsCounter = Defects.Where(d => d.DefectStatus == DefectStatus.Fixed && d.Execution.ExecutionStatus == ExecutionStatus.NotRun).Count().ToString();
+				}
+			}
+		}
+	}
+}

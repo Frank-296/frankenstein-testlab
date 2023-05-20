@@ -1,0 +1,420 @@
+﻿@page "/businessProcesses/list/{id}"
+@inject ITestApplicationsStore<TestApplication> testApplicationsService
+@inject IBusinessProcessesStore<BusinessProcess> businessProcessesService
+@inject NavigationManager navigationManager
+
+<div class="p-4">
+	<div class="card">
+		<div class="card-header bg-blueberry">
+			<div class="d-flex justify-content-between">
+				<h5 class="h5 mb-2 mt-2"><span class="oi oi-briefcase" aria-hidden="true"></span> Business processes (@TestApplication.Name)</h5>
+				<div class="btn-toolbar mb-2 mb-md-0">
+					<div class="btn-group btn-sm">
+						@if (Role == "Root" || Role == "Manager" || Role == "Administrator" || Role == "Automator")
+						{
+							if (BusinessProcesses != null)
+							{
+								<button class="btn btn-kiwi" @onclick="Export"><span class="oi oi-data-transfer-download"></span> Export data</button>
+							}
+							if (Role == "Root" || Role == "Automator")
+							{
+								<button class="btn btn-grass" @onclick="Create"><span class="oi oi-plus" aria-hidden="true"></span> Add</button>
+							}
+						}
+						<a class="btn btn-storm" href="/"><span class="oi oi-media-skip-backward"></span> Go back</a>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div class="card-body">
+			@if (BusinessProcesses == null)
+			{
+				<p><em>Loading...</em></p>
+			}
+			else
+			{
+				<RadzenDataGrid AllowFiltering="true" FilterMode="FilterMode.Simple" FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive" AllowColumnResize="true"
+							AllowPaging="true" AllowSorting="true" Data="BusinessProcesses" TItem="BusinessProcess" ColumnWidth="450px" Style="height:585px">
+					<Columns>
+						<RadzenDataGridColumn Frozen="true" TItem="BusinessProcess" Filterable="false" Sortable="false" TextAlign="TextAlign.Center" Width="50px">
+							<Template>
+								@(BusinessProcesses.IndexOf(context) + 1)
+							</Template>
+						</RadzenDataGridColumn>
+						<RadzenDataGridColumn Frozen="true" TItem="BusinessProcess" Property="Name" Title="Name" Width="300px">
+							<FooterTemplate>
+								Total records: <b>@BusinessProcesses.Count()</b>
+							</FooterTemplate>
+						</RadzenDataGridColumn>
+						<RadzenDataGridColumn TItem="BusinessProcess" Property="Description" Title="Description" Width="600px"></RadzenDataGridColumn>
+						<RadzenDataGridColumn TextAlign="TextAlign.Center" TItem="BusinessProcess" Property="Status" Title="Status" Width="100px">
+							<Template Context="data">
+								@(data.Status == true ? "Active" : "Inactive")
+							</Template>
+						</RadzenDataGridColumn>
+						<RadzenDataGridColumn TextAlign="TextAlign.Center" TItem="BusinessProcess" Sortable="false" Filterable="false" Width="@ActionsColumnWidth">
+							<Template Context="data">
+								<div class="btn-group w-100">
+									@if (data.Status)
+									{
+										<a class="btn btn-grape" title="Test suite" href="/testCases/list/@data.BusinessProcessId/@data.TestApplicationId">
+											<span class="oi oi-beaker" aria-hidden="true"></span>
+										</a>
+									}
+									else
+									{
+										<button class="btn btn-grape" title="Test suite" disabled>
+											<span class="oi oi-beaker" aria-hidden="true"></span>
+										</button>
+									}
+									@if (!ShowActionButtons)
+									{
+										<button class="btn btn-sky" title="Details" @onclick="() => Edit(data.BusinessProcessId, 2)">
+											<span class="oi oi-info" aria-hidden="true"></span>
+										</button>
+									}
+									@if (ShowActionButtons)
+									{
+										<button class="btn btn-olive" title="Edit" @onclick="() => Edit(data.BusinessProcessId, 1)">
+											<span class="oi oi-pencil" aria-hidden="true"></span>
+										</button>
+										<button class="btn btn-caution" title="Delete" @onclick="() => Delete(data.BusinessProcessId)">
+											<span class="oi oi-trash" aria-hidden="true"></span>
+										</button>
+									}
+								</div>
+							</Template>
+						</RadzenDataGridColumn>
+					</Columns>
+				</RadzenDataGrid>
+			}
+		</div>
+	</div>
+</div>
+
+@if (ShowCreateModal)
+{
+	<div class="modal fade show" style="display:block" tabindex="-1">
+		<div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+			<div class="modal-content">
+				<div class="modal-header bg-blueberry">
+					<h5 class="modal-title"><span class="oi oi-plus" aria-hidden="true"></span> New business process</h5>
+					<button type="button" class="btn-close btn-close-white" @onclick="() => Cancel(1)"></button>
+				</div>
+				<div class="modal-body">
+					<EditForm Model="BusinessProcess">
+						<div class="form-floating mb-3">
+							<InputText class="form-control" placeholder="Name" @bind-Value="BusinessProcess.Name"></InputText>
+							<label>Name</label>
+						</div>
+						<div class="form-floating mb-3">
+							<InputText class="form-control" placeholder="Namespace" @bind-Value="BusinessProcess.NameSpace"></InputText>
+							<label>Namespace</label>
+						</div>
+						<div class="form-floating mb-3">
+							<InputText class="form-control" placeholder="Description" @bind-Value="BusinessProcess.Description"></InputText>
+							<label>Description</label>
+						</div>
+						<div class="form-floating">
+							<InputTextArea class="form-control" placeholder="Remarks" style="height:300px" @bind-Value="BusinessProcess.Remarks"></InputTextArea>
+							<label>Remarks</label>
+						</div>
+					</EditForm>
+				</div>
+				<div class="modal-footer bg-light">
+					<div class="btn-group btn-sm w-100">
+						<button class="btn btn-confirm" @onclick="() => Save(1)"><span class="oi oi-check" aria-hidden="true"></span> Accept</button>
+						<button type="button" class="btn btn-mist" @onclick="() => Cancel(1)"><span class="oi oi-ban" aria-hidden="true"></span> Cancel</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="modal-backdrop fade show"></div>
+}
+
+@if (ShowEditModal)
+{
+	<div class="modal fade show" style="display:block" tabindex="-1">
+		<div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+			<div class="modal-content">
+				<div class="modal-header bg-blueberry">
+					<h5 class="modal-title"><span class="oi oi-pencil" aria-hidden="true"></span> Edit business process</h5>
+					<button type="button" class="btn-close btn-close-white" @onclick="() => Cancel(2)"></button>
+				</div>
+				<div class="modal-body">
+					<EditForm Model="BusinessProcess">
+						<div class="form-floating mb-3">
+							<InputText class="form-control" placeholder="Name" @bind-Value="BusinessProcess.Name" disabled></InputText>
+							<label>Name</label>
+						</div>
+						<div class="form-floating mb-3">
+							<InputText class="form-control" placeholder="Namespace" @bind-Value="BusinessProcess.NameSpace" disabled></InputText>
+							<label>Namespace</label>
+						</div>
+						<div class="form-floating mb-3">
+							<InputText class="form-control" placeholder="Description" @bind-Value="BusinessProcess.Description"></InputText>
+							<label>Description</label>
+						</div>
+						<div class="form-floating mb-3">
+							<InputTextArea class="form-control" placeholder="Remarks" style="height:300px" @bind-Value="BusinessProcess.Remarks"></InputTextArea>
+							<label>Remarks</label>
+						</div>
+						<div class="form-check">
+							<InputCheckbox id="status" class="form-check-input" typeof="checkbox" @bind-Value="BusinessProcess.Status"></InputCheckbox>
+							<label for="status" class="form-check-label">Activate/Deactivate</label>
+						</div>
+					</EditForm>
+				</div>
+				<div class="modal-footer bg-light">
+					<div class="btn-group btn-sm w-100">
+						<button class="btn btn-confirm" @onclick="() => Save(2)"><span class="oi oi-check" aria-hidden="true"></span> Accept</button>
+						<button type="button" class="btn btn-mist" @onclick="() => Cancel(2)"><span class="oi oi-ban" aria-hidden="true"></span> Cancel</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="modal-backdrop fade show"></div>
+}
+
+@if (ShowDetailsModal)
+{
+	<div class="modal fade show" style="display:block" tabindex="-1">
+		<div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+			<div class="modal-content">
+				<div class="modal-header bg-blueberry">
+					<h5 class="modal-title"><span class="oi oi-info" aria-hidden="true"></span> Business process details</h5>
+					<button type="button" class="btn-close btn-close-white" @onclick="() => Cancel(null)"></button>
+				</div>
+				<div class="modal-body">
+					<EditForm Model="BusinessProcess">
+						<div class="form-floating mb-3">
+							<InputText class="form-control" placeholder="Name" @bind-Value="BusinessProcess.Name" disabled></InputText>
+							<label>Name</label>
+						</div>
+						<div class="form-floating mb-3">
+							<InputText class="form-control" placeholder="Namespace" @bind-Value="BusinessProcess.NameSpace" disabled></InputText>
+							<label>Namespace</label>
+						</div>
+						<div class="form-floating mb-3">
+							<InputText class="form-control" placeholder="Description" @bind-Value="BusinessProcess.Description" disabled></InputText>
+							<label>Description</label>
+						</div>
+						<div class="form-floating">
+							<InputTextArea class="form-control" placeholder="Remarks" style="height:300px" @bind-Value="BusinessProcess.Remarks" disabled></InputTextArea>
+							<label>Remarks</label>
+						</div>
+					</EditForm>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="modal-backdrop fade show"></div>
+}
+
+@if (IsLoading)
+{
+	<div class="modal fade show" style="display:block" tabindex="-1">
+		<div class="modal-dialog modal-dialog-centered modal-sm modal-dialog-scrollable">
+			<div class="modal-content">
+				<div class="modal-header bg-blueberry">
+					<h5 class="modal-title"><span class="oi oi-clock" aria-hidden="true"></span> Wait...</h5>
+				</div>
+				<div class="modal-body" style="min-height:250px">
+					<div class="spinner"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="modal-backdrop fade show"></div>
+}
+
+@code {
+	[Parameter]
+	public String Id { get; set; }
+
+	private IList<BusinessProcess> BusinessProcesses;
+	private TestApplication TestApplication = new();
+	private BusinessProcess BusinessProcess = new();
+	private Boolean IsLoading = false;
+	private Boolean ShowCreateModal = false;
+	private Boolean ShowEditModal = false;
+	private Boolean ShowDetailsModal = false;
+	private Boolean ShowActionButtons = false;
+	private String ActionsColumnWidth;
+	private String Role;
+
+	private async Task Export()
+	{
+		IsLoading = true;
+
+		try
+		{
+			var dataTable = new DataTable("Business processes");
+
+			dataTable.Columns.AddRange(new DataColumn[5]
+			{
+				new DataColumn("#"),
+				new DataColumn("Name"),
+				new DataColumn("Description"),
+				new DataColumn("Remarks"),
+				new DataColumn("Status")
+			});
+
+			foreach (var businessProcess in BusinessProcesses)
+				dataTable.Rows.Add((BusinessProcesses.IndexOf(businessProcess) + 1),
+				businessProcess.Name,
+				businessProcess.Description,
+				businessProcess.Remarks,
+				businessProcess.Status == true ? "Active" : "Inactive");
+
+			var workBook = new XLWorkbook();
+			var workSheet = workBook.Worksheets.Add(dataTable);
+
+			workSheet.RangeUsed().Style.Font.FontName = "Cambria";
+			workSheet.ColumnsUsed().AdjustToContents();
+
+			var memoryStream = new MemoryStream();
+
+			workBook.SaveAs(memoryStream);
+
+			await FileSaver.SaveAsync($"Business processes ({TestApplication.Name}).xlsx", memoryStream, default);
+		}
+		catch (Exception)
+		{
+			await App.Current.MainPage.DisplayAlert("Incorrect", "An unexpected error occurred!", "Ok");
+		}
+
+		await Task.Delay(1000);
+
+		IsLoading = false;
+	}
+
+	private async Task LoadBusinessProcesses() => BusinessProcesses = await businessProcessesService.GetBusinessProcessesAsync(Id);
+
+	private void Create() => ShowCreateModal = true;
+
+	private async Task Edit(String id, Int32 action)
+	{
+		if (Connectivity.NetworkAccess == NetworkAccess.Internet)
+		{
+			BusinessProcess = await businessProcessesService.GetBusinessProcessAsync(id);
+
+			if (BusinessProcess != null)
+			{
+				if (action == 1)
+					ShowEditModal = true;
+				else
+					ShowDetailsModal = true;
+			}
+			else
+				await App.Current.MainPage.DisplayAlert("Incorrect", "Business process information not found!", "Ok");
+		}
+		else
+			await App.Current.MainPage.DisplayAlert("Connection error", "Please check your internet connection and try again!", "Ok");
+	}
+
+	private async Task Save(Int32 action)
+	{
+		if (String.IsNullOrEmpty(BusinessProcess.Name) && String.IsNullOrWhiteSpace(BusinessProcess.Name) ||
+			String.IsNullOrEmpty(BusinessProcess.NameSpace) && String.IsNullOrWhiteSpace(BusinessProcess.NameSpace) ||
+			String.IsNullOrEmpty(BusinessProcess.Description) && String.IsNullOrWhiteSpace(BusinessProcess.Description))
+			await App.Current.MainPage.DisplayAlert("Warning", "One or more fields are empty!", "Ok");
+		else
+		{
+			if (!(BusinessProcess.NameSpace.Count(x => x == '.') == 4))
+				await App.Current.MainPage.DisplayAlert("Warning", "No valid namespace entered!", "Ok");
+			else
+			{
+				if (Connectivity.NetworkAccess == NetworkAccess.Internet)
+				{
+					if (action == 1)
+					{
+						BusinessProcess.BusinessProcessId = Guid.NewGuid().ToString();
+						BusinessProcess.TestApplicationId = Id;
+						BusinessProcess.Status = true;
+
+						var businessProcess = await businessProcessesService.AddBusinessProcessAsync(BusinessProcess);
+
+						if (businessProcess != null)
+						{
+							ShowCreateModal = false;
+							BusinessProcess = new();
+						}
+					}
+					else
+					{
+						var businessProcess = await businessProcessesService.UpdateBusinessProcessAsync(BusinessProcess);
+
+						if (businessProcess != null)
+						{
+							ShowEditModal = false;
+							BusinessProcess = new();
+						}
+					}
+
+					await LoadBusinessProcesses();
+				}
+				else
+					await App.Current.MainPage.DisplayAlert("Connection error", "Please check your internet connection and try again!", "Ok");
+			}
+		}
+	}
+
+	private void Cancel(Int32? action)
+	{
+		if (action == 1)
+			ShowCreateModal = false;
+		else
+		{
+			if (action == 2)
+				ShowEditModal = false;
+			else
+				ShowDetailsModal = false;
+		}
+
+		BusinessProcess = new();
+	}
+
+	private async Task Delete(String businessProcessId)
+	{
+		if (await App.Current.MainPage.DisplayAlert("Delete", "Are you sure to delete this business process?", "Yes", "No"))
+		{
+			if (Connectivity.NetworkAccess == NetworkAccess.Internet)
+			{
+				await businessProcessesService.DeleteBusinessProcessAsync(businessProcessId);
+				await LoadBusinessProcesses();
+			}
+			else
+				await App.Current.MainPage.DisplayAlert("Connection error", "Please check your internet connection and try again!", "Ok");
+		}
+	}
+
+	protected override async Task OnInitializedAsync()
+	{
+		if (Preferences.ContainsKey("role"))
+			Role = Preferences.Get("role", null) as String;
+
+		if (Role == "Root" || Role == "Manager" || Role == "Administrator" || Role == "Automator")
+		{
+			ShowActionButtons = true;
+			ActionsColumnWidth = "180px";
+		}
+		else
+			ActionsColumnWidth = "120px";
+
+		if (Connectivity.NetworkAccess == NetworkAccess.Internet)
+		{
+			await LoadBusinessProcesses();
+
+			TestApplication = await testApplicationsService.GetTestApplicationAsync(Id);
+		}
+		else
+		{
+			await App.Current.MainPage.DisplayAlert("Connection error", "Please check your internet connection and try again!", "Ok");
+
+			navigationManager.NavigateTo($"/businessProcesses/list/{Id}", true);
+		}
+	}
+}

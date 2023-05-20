@@ -1,0 +1,445 @@
+﻿@page "/suiteExecutions/result/{from}/{filterId}/{businessProcessId}/{testApplicationId}"
+@inject ISuiteExecutionsStore<SuiteExecution> suiteExecutionsService
+@inject IExecutionsStore<Execution> executionsService
+@inject IDefectsStore<Defect> defectsService
+@inject NavigationManager navigationManager
+
+<div>
+	<div class="p-4">
+		<div class="row">
+			<div class="col-md-12 col-lg-12 col-xl-12 mb-4">
+				<div class="card">
+					<div class="card-header bg-blueberry">
+						<div class="d-flex justify-content-between">
+							<h5 class="h5 mb-2 mt-2"><span class="oi oi-clipboard" aria-hidden="true"></span> Execution result (@Execution.ExecutionStatus)</h5>
+							<div class="btn-toolbar mb-2 mb-md-0">
+								<div class="btn-group btn-sm">
+									@if (Execution.TestReport != null)
+									{
+										<button class="btn btn-kiwi" @onclick="() => Download(true)"><span class="oi oi-data-transfer-download"></span> Download report</button>
+									}
+									else
+									{
+										<button class="btn btn-kiwi" disabled><span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Loading...</button>
+									}
+									<a class="btn btn-storm" href="/suiteExecutions/report/@From/@SuiteExecutionId/@BusinessProcessId/@TestApplicationId"><span class="oi oi-media-skip-backward"></span> Go back</a>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="card-body @StatusBg">
+						@if (Execution.TestReport != null)
+						{
+							<iframe srcdoc="@HtmlReportString" frameborder="0" allowfullscreen style="position:relative; height:@ReportHeight; width:100%"></iframe>
+						}
+						else
+						{
+							<div class="modal-body" style="min-height:250px">
+								<div class="spinner"></div>
+							</div>
+						}
+					</div>
+				</div>
+			</div>
+			<div class="col-md-12 col-lg-12 col-xl-12 mb-4">
+				<div class="card">
+					<div class="card-header bg-blueberry">
+						<div class="d-flex justify-content-between">
+							<h5 class="h5 mb-2 mt-2"><span class="oi oi-list-rich" aria-hidden="true"></span> Execution information</h5>
+							<div class="btn-toolbar mb-2 mb-md-0">
+								<div class="btn-group btn-sm">
+									@if (Execution.ExecutionStatus != ExecutionStatus.Pass)
+									{
+										@if (ActionsButton)
+										{
+											<a class="btn btn-confirm" href="/executions/execute/@From/@Execution.TestCaseId/@BusinessProcessId/@TestApplicationId"><span class="oi oi-play-circle" aria-hidden="true"></span> New run</a>
+										}
+										else
+										{
+											<button class="btn btn-confirm" disabled><span class="oi oi-play-circle" aria-hidden="true"></span> New run</button>
+										}
+									}
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="card-body">
+						<table class="table table-sm table-bordered table-striped" cellspacing="0" width="100%">
+							<tbody>
+								<tr>
+									<th>Test application name:</th>
+									<td>@TestApplication.Name</td>
+								</tr>
+								<tr>
+									<th>Test application description:</th>
+									<td>@TestApplication.Description</td>
+								</tr>
+								<tr>
+									<th>Business process name:</th>
+									<td>@BusinessProcess.Name</td>
+								</tr>
+								<tr>
+									<th>Business process description:</th>
+									<td>@BusinessProcess.Description</td>
+								</tr>
+								<tr>
+									<th>Test case name:</th>
+									<td>@TestCase.Name</td>
+								</tr>
+								<tr>
+									<th>Test case description:</th>
+									<td>@TestCase.Description</td>
+								</tr>
+								<tr>
+									<th>Test type:</th>
+									<td>@TestCase.TestType</td>
+								</tr>
+								<tr>
+									<th>Preconditions:</th>
+									<td>@TestCase.Preconditions</td>
+								</tr>
+								<tr>
+									<th>Execution date:</th>
+									<td>@Execution.ExecutionDate</td>
+								</tr>
+								<tr>
+									<th>Environment:</th>
+									<td>@Execution.TestEnvironment</td>
+								</tr>
+								<tr>
+									<th>Browser:</th>
+									<td>@Execution.BrowserDriver</td>
+								</tr>
+								<tr>
+									<th>Status:</th>
+									<td class="@StatusBg">@Execution.ExecutionStatus</td>
+								</tr>
+								<tr>
+									<th>Remarks:</th>
+									<td>@Execution.Remarks</td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+			@if (Execution.TestData != null)
+			{
+				<div class="col-md-12 col-lg-12 col-xl-12 mb-4">
+					<div class="card">
+						<div class="card-header bg-blueberry">
+							<div class="d-flex justify-content-between">
+								<h5 class="h5 mb-2 mt-2"><span class="oi oi-spreadsheet" aria-hidden="true"></span> Test data (Data extracted from excel)</h5>
+								<div class="btn-toolbar mb-2 mb-md-0">
+									<div class="btn-group btn-sm">
+										<button class="btn btn-kiwi" @onclick="() => Download(false)"><span class="oi oi-data-transfer-download"></span> Download test data</button>
+									</div>
+								</div>
+							</div>
+						</div>
+						<div class="card-body">
+							@if (CurrentDataPool.Rows.Count == 0)
+							{
+								<p><em>@CurrentDataPoolStatus</em></p>
+							}
+							else
+							{
+								<table id="table" class="table table-sm table-bordered table-striped" cellspacing="0" width="100%">
+									<thead>
+										<tr>
+											@foreach (DataColumn column in CurrentDataPool.Columns)
+											{
+												<th>@column.ColumnName</th>
+											}
+										</tr>
+									</thead>
+									<tbody>
+										@foreach (DataRow row in CurrentDataPool.Rows)
+										{
+											<tr>
+												@foreach (DataColumn column in CurrentDataPool.Columns)
+												{
+													<td>@row[column.ColumnName]</td>
+												}
+											</tr>
+										}
+									</tbody>
+								</table>
+							}
+						</div>
+					</div>
+				</div>
+			}
+			<div class="col-md-12 col-lg-12 col-xl-12">
+				<div class="card">
+					<div class="card-header bg-blueberry">
+						<div class="d-flex justify-content-between">
+							<h5 class="h5 mb-2 mt-2"><span class="oi oi-person" aria-hidden="true"></span> Executor information</h5>
+						</div>
+					</div>
+					<div class="card-body">
+						<table class="table table-sm table-bordered table-striped" cellspacing="0" width="100%">
+							<tbody>
+								<tr>
+									<th>Executor:</th>
+									<td>@User.DisplayName</td>
+								</tr>
+								<tr>
+									<th>Company:</th>
+									<td>@Company.Name</td>
+								</tr>
+								<tr>
+									<th>Role:</th>
+									<td>@UserRole.Name</td>
+								</tr>
+								<tr>
+									<th>Email:</th>
+									<td>@User.Email</td>
+								</tr>
+								<tr>
+									<th>Phone number:</th>
+									<td>@User.PhoneNumber</td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+@if (IsLoading)
+{
+	<div class="modal fade show" style="display:block" tabindex="-1">
+		<div class="modal-dialog modal-dialog-centered modal-sm modal-dialog-scrollable">
+			<div class="modal-content">
+				<div class="modal-header bg-blueberry">
+					<h5 class="modal-title"><span class="oi oi-clock" aria-hidden="true"></span> Wait...</h5>
+				</div>
+				<div class="modal-body" style="min-height:250px">
+					<div class="spinner"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="modal-backdrop fade show"></div>
+}
+
+@code {
+	[Parameter]
+	public String From { get; set; }
+
+	[Parameter]
+	public String FilterId { get; set; }
+
+	[Parameter]
+	public String BusinessProcessId { get; set; }
+
+	[Parameter]
+	public String TestApplicationId { get; set; }
+
+	private SuiteExecution SuiteExecution = new();
+	private Execution Execution = new();
+	private TestCase TestCase = new();
+	private User User = new();
+	private Company Company = new();
+	private Role UserRole = new();
+	private BusinessProcess BusinessProcess = new();
+	private TestApplication TestApplication = new();
+	private DataTable CurrentDataPool = new();
+	private Boolean IsLoading = false;
+	private Boolean ActionsButton = false;
+	private String CurrentDataPoolStatus = "Waiting...";
+	private String HtmlReportString;
+	private String ReportHeight;
+	private String StatusBg;
+	private String Role;
+	private String SuiteExecutionId;
+	private String Id;
+
+	private async Task Download(Boolean isReport)
+	{
+		IsLoading = true;
+
+		if (isReport)
+		{
+			try
+			{
+				var fileName = "index.html";
+
+				var stream = new MemoryStream(Compression.Decompress(Execution.TestReport));
+
+				await FileSaver.SaveAsync(fileName, stream, default);
+			}
+			catch (Exception)
+			{
+				await App.Current.MainPage.DisplayAlert("Incorrect", "An unexpected error occurred!", "Ok");
+			}
+
+			await Task.Delay(1000);
+		}
+		else
+		{
+			try
+			{
+				var fileName = $"{Execution.TestCase.Name}.xlsx";
+				var stream = new MemoryStream(Execution.TestData);
+
+				await FileSaver.SaveAsync(fileName, stream, default);
+			}
+			catch (Exception)
+			{
+				await App.Current.MainPage.DisplayAlert("Incorrect", "An unexpected error occurred!", "Ok");
+			}
+		}
+
+		IsLoading = false;
+	}
+
+	private async Task LoadTestReport()
+	{
+		if (Execution != null)
+		{
+			var execution = await executionsService.GetExecutionAsync(FilterId, true, false);
+
+			Execution.TestReport = execution.TestReport;
+
+			HtmlReportString = Encoding.Default.GetString(Compression.Decompress(Execution.TestReport));
+		}
+	}
+
+	private async Task LoadTestData()
+	{
+		if (Execution != null)
+		{
+			var execution = await executionsService.GetExecutionAsync(FilterId, false, true);
+
+			Execution.TestData = execution.TestData;
+
+			if (Execution.TestData != null)
+			{
+				CurrentDataPoolStatus = "Loading...";
+
+				var memoryStream = new MemoryStream(Execution.TestData);
+				var workBook = new XLWorkbook(memoryStream);
+				var workSheet = workBook.Worksheet(1);
+				var firstRow = true;
+
+				foreach (var row in workSheet.RangeUsed().RowsUsed())
+				{
+					if (firstRow)
+					{
+						foreach (IXLCell cell in row.Cells())
+							CurrentDataPool.Columns.Add(cell.GetString());
+
+						firstRow = false;
+					}
+					else
+					{
+						CurrentDataPool.Rows.Add();
+
+						var rowStart = 0;
+
+						foreach (IXLCell cell in row.Cells(row.FirstCellUsed().Address.ColumnNumber, row.LastCellUsed().Address.ColumnNumber))
+						{
+							CurrentDataPool.Rows[CurrentDataPool.Rows.Count - 1][rowStart] = cell.GetString();
+							rowStart++;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	private async Task LoadSuiteExecution()
+	{
+		SuiteExecution = await suiteExecutionsService.GetSuiteExecutionAsync(FilterId, false);
+
+		if (SuiteExecution != null)
+			BusinessProcess = SuiteExecution.BusinessProcess;
+		else
+		{
+			await App.Current.MainPage.DisplayAlert("Incorrect", "No suite execution info found!", "Ok");
+
+			navigationManager.NavigateTo($"/suiteExecutions/list/{BusinessProcessId}/{TestApplicationId}");
+		}
+	}
+
+	private async Task LoadExecution()
+	{
+		Execution = await executionsService.GetExecutionAsync(FilterId, false, false);
+
+		if (Execution != null)
+		{
+			TestCase = Execution.TestCase;
+			BusinessProcess = Execution.TestCase.BusinessProcess;
+			TestApplication = Execution.TestCase.BusinessProcess.TestApplication;
+			User = Execution.User;
+			Company = Execution.User.Company;
+			UserRole = Execution.User.UserRoles.FirstOrDefault().Role;
+
+			Preferences.Set("executionId", FilterId);
+
+			if (Role == "Root" || Role == "Manager" || Role == "Administrator" || Id == Execution.UserId)
+				ActionsButton = true;
+
+			switch (Execution.ExecutionStatus)
+			{
+				case ExecutionStatus.Pass:
+					StatusBg = "bg-grass";
+					ReportHeight = "73vh";
+					break;
+
+				case ExecutionStatus.Fail:
+					StatusBg = "bg-mammee";
+					ReportHeight = "65vh";
+					break;
+
+				case ExecutionStatus.NotRun:
+					StatusBg = "bg-sky";
+					ReportHeight = "65vh";
+					break;
+
+				case ExecutionStatus.Stop:
+					StatusBg = "bg-pineapple";
+					ReportHeight = "65vh";
+					break;
+			}
+		}
+		else
+		{
+			await App.Current.MainPage.DisplayAlert("Incorrect", "No execution info found!", "Ok");
+
+			navigationManager.NavigateTo($"/suiteExecutions/report/{SuiteExecutionId}/{BusinessProcessId}/{TestApplicationId}");
+		}
+	}
+
+	protected override async Task OnInitializedAsync()
+	{
+		if (Preferences.ContainsKey("suiteExecutionId"))
+			SuiteExecutionId = Preferences.Get("suiteExecutionId", null) as String;
+
+		if (Preferences.ContainsKey("role"))
+			Role = Preferences.Get("role", null) as String;
+
+		if (Preferences.ContainsKey("id"))
+			Id = Preferences.Get("id", null) as String;
+
+		if (Connectivity.NetworkAccess == NetworkAccess.Internet)
+		{
+			var task = Task.Run(async () => await LoadExecution());
+
+			task.Wait();
+
+			await task.ContinueWith(_ => LoadTestReport().Wait())
+				.ContinueWith(_ => LoadTestData().Wait());
+		}
+		else
+		{
+			await App.Current.MainPage.DisplayAlert("Connection error", "Please check your internet connection and try again!", "Ok");
+
+			navigationManager.NavigateTo($"/suiteExecutions/result/{From}/{FilterId}/{BusinessProcessId}/{TestApplicationId}", true);
+		}
+	}
+}

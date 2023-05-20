@@ -1,0 +1,110 @@
+﻿@inject IAccountsStore<LoginViewModel, GetProfileViewModel, UpdateProfileViewModel, ChangePasswordViewModel> service
+@inject NavigationManager navigationManager
+@inherits LayoutComponentBase
+
+<div class="page">
+    @if (IsLogged == "1")
+    {
+        <div class="sidebar">
+            <NavMenu Role="@Role" />
+        </div>
+
+        <main>
+            <div class="top-row px-4">
+                <img src="images/Logo.png" width="150" class="img-fluid" />
+            </div>
+
+            @Body
+        </main>
+    }
+    else
+    {
+        <div class="limiter">
+            <div class="container-login">
+                <div class="wrap-login">
+                    <div class="login-form">
+                        <span class="login-form-logo">
+                            <img src="images/Logo.png">
+                        </span>
+                        <EditForm Model="LoginViewModel">
+                            <div>
+                                <div class="form-floating mb-4">
+                                    <InputText class="form-control" placeholder="Email" @bind-Value="LoginViewModel.Email"></InputText>
+                                    <label class="form-label">Email</label>
+                                </div>
+                                <div class="form-floating mb-2">
+                                    <InputText class="form-control" type="password" placeholder="Password" @bind-Value="LoginViewModel.Password"></InputText>
+                                    <label class="form-label">Password</label>
+                                </div>
+                                <div class="input-group col-lg-12">
+                                    <p style="padding-top:10px; padding-bottom:20px" class="login-form-a">
+                                        <a href="#">Forgot password?</a>
+                                    </p>
+                                </div>
+                                <div class="form-group col-lg-12 mx-auto mb-0">
+                                    <button type="submit" class="btn btn-confirm w-100" @onclick="LogIn"><span class="oi oi-account-login"></span> Log in</button>
+                                </div>
+                            </div>
+                        </EditForm>
+                    </div>
+                    <div class="login-background" style="background-image: url('/images/Background.jpg');"></div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private LoginViewModel LoginViewModel = new();
+    private String IsLogged;
+    private String Role;
+
+    private void GetRole()
+    {
+        if (Preferences.ContainsKey("role"))
+            Role = Preferences.Get("role", null) as String;
+    }
+
+    private async Task LogIn()
+    {
+        if (String.IsNullOrEmpty(LoginViewModel.Email) && String.IsNullOrWhiteSpace(LoginViewModel.Email) || String.IsNullOrEmpty(LoginViewModel.Password) && String.IsNullOrWhiteSpace(LoginViewModel.Password))
+            await App.Current.MainPage.DisplayAlert("Warning", "One or more fields are empty!", "Ok");
+        else
+        {
+            if (Connectivity.NetworkAccess == NetworkAccess.Internet)
+            {
+                IsLogged = await service.LoginAsync(LoginViewModel);
+
+                GetRole();
+            }
+            else
+                await App.Current.MainPage.DisplayAlert("Connection error", "Please check your internet connection and try again!", "Ok");
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        IsLogged = await SecureStorage.GetAsync("isLogged");
+
+        if (IsLogged == "1")
+        {
+            if (Preferences.ContainsKey("expiration"))
+            {
+                var tokenValidity = Preferences.Get("expiration", null) as String;
+                var tokenExpiration = Convert.ToDateTime(tokenValidity);
+
+                if (DateTime.Now >= tokenExpiration)
+                {
+                    await App.Current.MainPage.DisplayAlert("Warning", "Your session has expired, please log in again!", "Ok");
+
+                    Preferences.Clear();
+                    SecureStorage.RemoveAll();
+
+                    IsLogged = "0";
+                }
+                else
+                    GetRole();
+            }
+        }
+    }
+}
