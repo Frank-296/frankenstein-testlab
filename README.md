@@ -20,3 +20,5 @@ How does the app work?
 Frankenstein Test Lab architecture: ![Frankenstein Test Lab architecture](https://github.com/Frank-296/frankenstein-testlab/assets/128120916/480a42d6-743b-4419-b124-56f65e0695c9)
 
 To see our demos visit: https://frankenstein-software.com/
+
+Note: Preloaded test cases may fail when run due to updates companies make to their online stores.
